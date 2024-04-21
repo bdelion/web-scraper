@@ -56,5 +56,5 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 <!-- liens -->
 [Keep a Changelog]: https://keepachangelog.com/fr/1.0.0/ "CHANGELOG Template et bonnes pratiques"
 [Semantic Versioning]: https://semver.org/lang/fr/ "Bonnes pratique de la Gestion de Version"
-[Unreleased]: https://github.com/bdelion/stabler-scraper/compare/1.0.0...develop
-[1.0.0]: https://github.com/bdelion/stabler-scraper/releases/tag/1.0.0
+[Unreleased]: https://github.com/bdelion/web-scraper/compare/1.0.0...develop
+[1.0.0]: https://github.com/bdelion/web-scraper/releases/tag/1.0.0
