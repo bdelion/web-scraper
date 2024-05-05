@@ -11,12 +11,18 @@
 
 `web-scraper` est un project permetant de mettre en oeuvre les exemples de scrapping des sites Web suivants :
 
-- https://stabler.tech/blog/web-scraping-with-nodejs
+- [stabler.tech]
   - basic-get-request.js
   - puppeteer-request.js
   - crawler-request.js
   - ***A finir de lire***
-- yyy
+- [medium.com/@appiness68]
+  - xxx
+- [serpapi.com]
+  - xxx
+- [brightdata.com]
+  - xxx
+- 
 
 ## Prérequis
 
@@ -104,6 +110,11 @@ Nous utilisons [SemVer] pour le versioning. Pour les versions disponibles, voir 
 [qdl]: https://sonarcloud.io/summary/new_code?id=bdelion_web-scraper&branch=develop "Sonar develop Dashboard"
 
 [Make a README]: https://www.makeareadme.com/#template-1 "README Template et bonnes pratiques"
+
+[stabler.tech]: https://stabler.tech/blog/web-scraping-with-nodejs
+[medium.com/@appiness68]: https://medium.com/@appiness68/web-scraping-using-node-js-2d0e1a1b606c
+[serpapi.com]: https://serpapi.com/blog/web-scraping-in-javascript-complete-tutorial-for-beginner/
+[brightdata.com]: https://brightdata.com/blog/how-tos/web-scraping-with-node-js
 
 [config.json]: https://github.com/bdelion/web-scraper/blob/main/src/assets/config.json "Lien vers le fichier de configuration de référence"
 [Configuration]: https://bdelion.github.io/web-scraper/Installation-&-configuration/Configuration "Documentation pour configurer web-scraper"
