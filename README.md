@@ -19,7 +19,8 @@
 - [medium.com/@appiness68]
   - xxx
 - [serpapi.com]
-  - xxx
+  - serpapi-axio-cheerio.js
+  - serpapi-puppeteer.js
 - [brightdata.com]
   - xxx
 -
