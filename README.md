@@ -1,8 +1,8 @@
 # Welcome to `web-scraper` :wave:
 
-| Service             | Main                               | Develop                            |
-|:--------------------|:----------------------------------:|:----------------------------------:|
-| CI Status           | [![Build Status][bmb]][bml]        | [![Build Status][bdb]][bdl]        |
+| Service             |                Main                |              Develop               |
+| :------------------ | :--------------------------------: | :--------------------------------: |
+| CI Status           |    [![Build Status][bmb]][bml]     |    [![Build Status][bdb]][bdl]     |
 | Quality Gate Status | [![Quality Gate Status][qmb]][qml] | [![Quality Gate Status][qdb]][qdl] |
 
 > NOTE : Le format est basé sur [Make a README].
@@ -12,17 +12,18 @@
 `web-scraper` est un project permetant de mettre en oeuvre les exemples de scrapping des sites Web suivants :
 
 - [stabler.tech]
-  - basic-get-request.js
-  - puppeteer-request.js
-  - crawler-request.js
-  - ***A finir de lire***
+  - stabler-basic-get.js
+  - stabler-puppeteer.js
+  - stabler-crawler.js
+  - **_A finir de lire_**
 - [medium.com/@appiness68]
   - xxx
 - [serpapi.com]
-  - xxx
+  - serpapi-axio-cheerio.js
+  - serpapi-puppeteer.js
 - [brightdata.com]
   - xxx
-- 
+-
 
 ## Prérequis
 
@@ -38,13 +39,13 @@ Les éléments suivants doivent être installés :
    $ mkdir web-scraper && cd web-scraper
    ```
 2. Installer le logiciel :
-    ```sh
-    $ npm install -g web-scraper
-    ```
+   ```sh
+   $ npm install -g web-scraper
+   ```
 3. Afin de vérifier la version installée et de créer le fichier de configuration par défaut, exécutez la commande la commande :
-    ```sh
-    $ web-scraper -v
-    ```
+   ```sh
+   $ web-scraper -v
+   ```
 4. La commande ci-dessus crée le fichier de configuration [config.json] dans votre home directory (C:\users\[matricule] sous Windows) nommé `~/.web-scraper/` et retourne le numéro de version du script. Pour ajuster la configuration, consulter la page de documentation [Configuration].
 
 ## :house: [Homepage]
@@ -100,6 +101,7 @@ Nous utilisons [SemVer] pour le versioning. Pour les versions disponibles, voir 
 - [Dependents] - Projets dépendants de celui-ci
 
 <!-- liens -->
+
 [bmb]: https://github.com/bdelion/web-scraper/actions/workflows/node.js.yml/badge.svg?branch=main "Jenkins main Build Status Icon"
 [bml]: https://github.com/bdelion/web-scraper/actions/workflows/node.js.yml "Jenkins main Job"
 [bdb]: https://github.com/bdelion/web-scraper/actions/workflows/node.js.yml/badge.svg?branch=develop "Jenkins develop Build Status Icon"
@@ -108,18 +110,14 @@ Nous utilisons [SemVer] pour le versioning. Pour les versions disponibles, voir 
 [qml]: https://sonarcloud.io/summary/new_code?id=bdelion_web-scraper&branch=main "Sonar main Dashboard"
 [qdb]: https://sonarcloud.io/api/project_badges/measure?project=bdelion_web-scraper&branch=develop&metric=alert_status "Sonar develop Quality Gate Status Badge"
 [qdl]: https://sonarcloud.io/summary/new_code?id=bdelion_web-scraper&branch=develop "Sonar develop Dashboard"
-
 [Make a README]: https://www.makeareadme.com/#template-1 "README Template et bonnes pratiques"
-
 [stabler.tech]: https://stabler.tech/blog/web-scraping-with-nodejs
 [medium.com/@appiness68]: https://medium.com/@appiness68/web-scraping-using-node-js-2d0e1a1b606c
 [serpapi.com]: https://serpapi.com/blog/web-scraping-in-javascript-complete-tutorial-for-beginner/
 [brightdata.com]: https://brightdata.com/blog/how-tos/web-scraping-with-node-js
-
 [config.json]: https://github.com/bdelion/web-scraper/blob/main/src/assets/config.json "Lien vers le fichier de configuration de référence"
 [Configuration]: https://bdelion.github.io/web-scraper/Installation-&-configuration/Configuration "Documentation pour configurer web-scraper"
 [Homepage]: https://github.com/bdelion/web-scraper/tree/main "Documentation pour configurer web-scraper"
-
 [Visual Studio Code]: https://code.visualstudio.com/
 [Travis CI]: https://travis-ci.com/
 [Codacy]: https://www.codacy.com/
@@ -127,22 +125,16 @@ Nous utilisons [SemVer] pour le versioning. Pour les versions disponibles, voir 
 [Code Coverage]: https://codecov.io/
 [Coveralls]: https://coveralls.io/
 [SonarCloud]: https://sonarcloud.io/about
-
 [@bdelion]: https://github.com/bdelion
 [contributeurs]: https://github.com/bdelion/web-scraper/graphs/contributors "Liste des contributeurs au projet"
-
 [CHANGELOG]: CHANGELOG.md "CHANGELOG du projet"
-
 [issues]: https://github.com/bdelion/web-scraper/issues "Liste des issues ouvertes"
-
 [SemVer]: https://semver.org/lang/fr/ "Bonnes pratique de la Gestion de Version"
 [les tags de ce projet]: https://github.com/bdelion/web-scraper/tags "Liste des tags du projet"
-
 [GitHub Pages]: https://bdelion.github.io/web-scraper/
 [Job Travis CI]: https://travis-ci.com/bdelion/web-scraper "Job Travis du projet"
 [Github Actions]: https://github.com/bdelion/web-scraper/actions "Workflows GitHub Actions du projet"
 [Sonar]: https://sonarcloud.io/project/overview?id=bdelion_web-scraper "Dashboard Sonar du projet"
 [GitHub Package Registry]: https://github.com/bdelion/web-scraper/packages
-
 [Dependencies]: https://github.com/bdelion/web-scraper/network/dependencies
 [Dependents]: https://github.com/bdelion/web-scraper/network/dependents
