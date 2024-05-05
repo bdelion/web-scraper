@@ -12,9 +12,9 @@
 `web-scraper` est un project permetant de mettre en oeuvre les exemples de scrapping des sites Web suivants :
 
 - [stabler.tech]
-  - basic-get-request.js
-  - puppeteer-request.js
-  - crawler-request.js
+  - stabler-basic-get.js
+  - stabler-puppeteer.js
+  - stabler-crawler.js
   - **_A finir de lire_**
 - [medium.com/@appiness68]
   - xxx
