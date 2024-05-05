@@ -16,27 +16,27 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 
 ### Changed
 
-*
+-
 
 ### Deprecated
 
-*
+-
 
 ### Removed
 
-*
+-
 
 ### Fixed
 
-*
+-
 
 ### Security
 
-*
+-
 
 ### Dependencies
 
-*
+-
 
 ## [1.0.0] - aaaa-mm-jj
 
@@ -45,6 +45,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 - xxx
 - xxx
 - xxx
+
 ### Changed
 
 - xxx
@@ -54,6 +55,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 - xxx
 
 <!-- liens -->
+
 [Keep a Changelog]: https://keepachangelog.com/fr/1.0.0/ "CHANGELOG Template et bonnes pratiques"
 [Semantic Versioning]: https://semver.org/lang/fr/ "Bonnes pratique de la Gestion de Version"
 [Unreleased]: https://github.com/bdelion/web-scraper/compare/1.0.0...develop
