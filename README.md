@@ -22,7 +22,7 @@
   - serpapi-axio-cheerio.js
   - serpapi-puppeteer.js
 - [brightdata.com]
-  - xxx
+  - brightdata-axio-cheerio.js
 -
 
 ## Prérequis
