@@ -2,13 +2,20 @@
 
 const axios = require("axios");
 const cheerio = require("cheerio");
+const moment = require("moment");
 
-async function performScraping() {
+async function performScraping(date) {
+  const momentDate = moment(date, "DD/MM/YY hh:mm");
+  let day = momentDate.date();
+  let month = momentDate.month();
+  let year = momentDate.year();
+  let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=79049004&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
+
   // downloading the target web page
   // by performing an HTTP GET request in Axios
   const axiosResponse = await axios.request({
     method: "GET",
-    url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=79049004&jour2=20&mois2=1&annee2=2024",
+    url: url,
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
@@ -45,8 +52,32 @@ async function performScraping() {
       dataMeteo.push(rowData);
     });
 
-  // Print the table data
-  console.log(JSON.stringify(dataMeteo));
+  // Return the table data
+  return dataMeteo;
 }
 
-performScraping();
+// initializing the data structures
+// that will contain all scraped data
+const datasMeteo = {};
+
+(async () => {
+  // console.log("=-=-=-=-=-=-=-= 25/01/22 7:41 =-=-=-=-=-=-=-=");
+  // console.log(JSON.stringify(await performScraping("25/1/22 7:41")));
+  // console.log("=-=-=-=-=-=-=-= 06/05/24 7:40 =-=-=-=-=-=-=-=");
+  // console.log(JSON.stringify(await performScraping("6/5/24 7:40")));
+
+  // Add the row data to the table data array
+  // datasMeteo.push(await performScraping("25/1/22 7:41"));
+  // datasMeteo.push(await performScraping("6/5/24 7:40"));
+
+  // let datasMeteoPartiel = [];
+  // datasMeteoPartiel.push(await performScraping("25/1/22 7:41"));
+  // datasMeteo["25/1/22 7:41"] = datasMeteoPartiel;
+  // datasMeteoPartiel = [];
+  // datasMeteoPartiel.push(await performScraping("6/5/24 7:40"));
+  // datasMeteo["6/5/24 7:40"] = datasMeteoPartiel;
+  
+  datasMeteo["25/1/22 7:41"] = await performScraping("25/1/22 7:41");
+  datasMeteo["6/5/24 7:40"] = await performScraping("6/5/24 7:40");
+  console.log(JSON.stringify(datasMeteo));
+})();
