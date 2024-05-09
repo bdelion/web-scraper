@@ -23,6 +23,7 @@
   - serpapi-puppeteer.js
 - [brightdata.com]
   - brightdata-axio-cheerio.js
+  - brightdata-axio-cheerio-meteo.js
 -
 
 ## Prérequis
