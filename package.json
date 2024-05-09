@@ -1,7 +1,7 @@
 {
   "name": "web-scraper",
   "version": "1.0.0",
-  "description": "Project create from https://stabler.tech/blog/web-scraping-with-nodejs",
+  "description": "Project create for testing web scraping",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,8 +10,11 @@
     "type": "git",
     "url": "git+https://github.com/bdelion/web-scraper.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "web",
+    "scraping"
+  ],
+  "author": "Bertrand DELION",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/bdelion/web-scraper/issues"
