@@ -45,7 +45,8 @@ async function performScraping(date) {
         .find('td[align="center"], div[align="center"]')
         .each((j, cell) => {
           // Add the cell data to the row data object
-          rowData[$(cell).text()] = j;
+          //rowData[$(cell).text()] = j;
+          rowData[j] = $(cell).text();
         });
 
       // Add the row data to the table data array
@@ -61,22 +62,6 @@ async function performScraping(date) {
 const datasMeteo = {};
 
 (async () => {
-  // console.log("=-=-=-=-=-=-=-= 25/01/22 7:41 =-=-=-=-=-=-=-=");
-  // console.log(JSON.stringify(await performScraping("25/1/22 7:41")));
-  // console.log("=-=-=-=-=-=-=-= 06/05/24 7:40 =-=-=-=-=-=-=-=");
-  // console.log(JSON.stringify(await performScraping("6/5/24 7:40")));
-
-  // Add the row data to the table data array
-  // datasMeteo.push(await performScraping("25/1/22 7:41"));
-  // datasMeteo.push(await performScraping("6/5/24 7:40"));
-
-  // let datasMeteoPartiel = [];
-  // datasMeteoPartiel.push(await performScraping("25/1/22 7:41"));
-  // datasMeteo["25/1/22 7:41"] = datasMeteoPartiel;
-  // datasMeteoPartiel = [];
-  // datasMeteoPartiel.push(await performScraping("6/5/24 7:40"));
-  // datasMeteo["6/5/24 7:40"] = datasMeteoPartiel;
-  
   datasMeteo["25/1/22 7:41"] = await performScraping("25/1/22 7:41");
   datasMeteo["6/5/24 7:40"] = await performScraping("6/5/24 7:40");
   console.log(JSON.stringify(datasMeteo));
