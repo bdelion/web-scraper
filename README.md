@@ -28,6 +28,8 @@
   - brightdata-puppeteer-meteo.js
 - [risingstack mastering-async-await-in-nodejs]
   - risingstack-async-await.js
+- [geeksforgeeks read-and-write-excel-file]
+  - geeksforgeeks-read-excel-file.js
 
 ## Prérequis
 
@@ -120,6 +122,7 @@ Nous utilisons [SemVer] pour le versioning. Pour les versions disponibles, voir 
 [serpapi.com]: https://serpapi.com/blog/web-scraping-in-javascript-complete-tutorial-for-beginner/
 [brightdata.com]: https://brightdata.com/blog/how-tos/web-scraping-with-node-js
 [risingstack mastering-async-await-in-nodejs]: https://blog.risingstack.com/mastering-async-await-in-nodejs/
+[geeksforgeeks read-and-write-excel-file]: https://www.geeksforgeeks.org/how-to-read-and-write-excel-file-in-node-js/
 [config.json]: https://github.com/bdelion/web-scraper/blob/main/src/assets/config.json "Lien vers le fichier de configuration de référence"
 [Configuration]: https://bdelion.github.io/web-scraper/Installation-&-configuration/Configuration "Documentation pour configurer web-scraper"
 [Homepage]: https://github.com/bdelion/web-scraper/tree/main "Documentation pour configurer web-scraper"
