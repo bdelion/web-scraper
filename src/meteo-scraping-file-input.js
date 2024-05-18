@@ -115,6 +115,36 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   return rowData;
 }
 
+// Récupération de l'id de la station météo d'une ville
+async function performIdStationScraping(stationName) {
+  let url = `https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${stationName}`;
+
+  try {
+    // downloading the target web page by performing an HTTP GET request in Axios
+    const axiosResponse = await axios.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+      },
+    })
+    
+    // Vérifier si le contenu est vide
+    if (!axiosResponse.data || axiosResponse.data === '') {
+      throw new Error('La réponse est vide');
+    }
+    
+    // Si tout est bon, tu peux continuer avec le traitement des données
+    console.log('Données reçues:', axiosResponse.data);
+    // Return the Weather Station Id bu Parsing the response, format : 7156|Paris-Montsouris (75)|0|75|0|1716185221
+    return axiosResponse.data.substring(0, axiosResponse.data.indexOf("|"));
+  } catch (error) {
+    // Remonter l'erreur à la méthode appelante
+    throw error;
+  }
+}
+
 // Création d'un tableau avec la date/heure de début et de fin sur une ligne
 const formatData = (jsonArray) => {
   let previousDate = "";
@@ -216,6 +246,19 @@ async function main() {
   const jsonResult = readExcel("assets/InputData.xlsx", "Suivi Conso New", 2);
   // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
   const inputDatas = formatData(jsonResult);
+  // Déclaration
+  let stationId;
+
+  // Récupération de l'id de la station météo d'une ville donnée
+  try {
+    stationId = await performIdStationScraping("Bressuire");
+    console.log("stationId: " + stationId);
+  } catch (error) {
+    // Gérer l'erreur remontée lors de la récupération de l'id de la station météo
+    console.error('Erreur performIdStationScraping :', error.message);
+    // Stopper le script
+    process.exit(1);
+  }
   
   // Pour chacune des lignes, récuparation des infos
   for (const currentValue of inputDatas) {
@@ -225,7 +268,7 @@ async function main() {
       weatherDatas.push(
         // Récupération des températures entre deux dates/heures
         await getWeatherDataBetween2Dates(
-          79049004,
+          stationId,
           currentValue.begin,
           currentValue.end
         )
