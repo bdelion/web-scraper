@@ -25,6 +25,8 @@
     "cheerio": "^1.0.0-rc.12",
     "crawler": "^1.5.0",
     "moment": "^2.30.1",
-    "puppeteer": "^22.8.0"
+    "puppeteer": "^22.8.1",
+    "read-excel-file": "^5.8.1",
+    "xlsx": "^0.18.5"
   }
 }
