@@ -153,7 +153,8 @@ const formatData = (jsonArray) => {
   jsonArray.forEach((entry) => {
     // Initialisation d'un objet vide pour stocker les données de la ligne
     const rowData = {};
-    if (previousDate !== "") {
+    // On ne veut que les intervalles sans données de températures
+    if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) {
       rowData["begin"] = previousDate;
       rowData["end"] = entry.Date;
       dateArray.push(rowData);
