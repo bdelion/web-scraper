@@ -8,6 +8,32 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const moment = require("moment");
 
+// Obtenir la moyenne d'une propriété d'un tableau d'objet
+function getAverage(tableauObjets) {
+  let sum = 0;
+
+  //TODO avec reduce https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce
+
+  if(!tableauObjets.length){
+    return sum;  
+  }
+  for (let i = 0; i < tableauObjets.length; i++){
+    sum += Number(tableauObjets[i].temperature);
+  }
+  return (sum / tableauObjets.length).toFixed(2).toString();
+}
+
+// Obtenir la valeur médiane d'un tableau
+function findMedian(tableauObjets) {
+  tableauObjets.sort((a, b) => a.temperature - b.temperature);
+  const middleIndex = Math.floor(tableauObjets.length / 2);
+  if (tableauObjets.length % 2 === 0) {
+    return ((Number(tableauObjets[middleIndex - 1].temperature) + Number(tableauObjets[middleIndex].temperature)) / 2).toFixed(2).toString();
+  } else {
+    return tableauObjets[middleIndex].temperature.toString();
+  }
+}
+
 // Scrapper les données sur le site pour une commune et une date données
 async function performScraping(idCommune, date) {
   const momentDate = moment(date, "DD/MM/YYYY HH:mm:ss");
@@ -59,8 +85,8 @@ async function performScraping(idCommune, date) {
         rowData["jour"] = momentDate.format("DD/MM/YYYY");
         rowData["heure"] = dataLine[0].replace("h", ":");
         rowData["moment"] = moment(rowData["jour"] + " " + rowData["heure"], "DD/MM/YYYY HH:mm:ss");
+        //TODO Replace string by number
         rowData["temperature"] = dataLine[2].substring(0, dataLine[2].indexOf(" �C"));
-
         // Ajout des données de la ligne au tableau des résultats retournés
         dataWeather.push(rowData);
       }
@@ -110,8 +136,9 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   rowData["moment"] = dateEnd;
   // TODO faire des tests sans la transformations "." en "," et avec le formattage des données lors de l'écriture du fichier
   rowData["temperatureMin"] = filteredDatasWeather[0].temperature.replace(".", ",");
-  rowData["temperatureMax"] =
-    filteredDatasWeather[filteredDatasWeather.length - 1].temperature.replace(".", ",");
+  rowData["temperatureMax"] = filteredDatasWeather[filteredDatasWeather.length - 1].temperature.replace(".", ",");
+  rowData["temperatureMoyenne"] = getAverage(filteredDatasWeather).replace(".", ",");
+  rowData["temperatureMediane"] = findMedian(filteredDatasWeather).replace(".", ",");
   return rowData;
 }
 
@@ -154,7 +181,8 @@ const formatData = (jsonArray) => {
     // Initialisation d'un objet vide pour stocker les données de la ligne
     const rowData = {};
     // On ne veut que les intervalles sans données de températures
-    if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) {
+    //TOREDO if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) {
+      if ((previousDate !== "")) {
       rowData["begin"] = previousDate;
       rowData["end"] = entry.Date;
       dateArray.push(rowData);
@@ -199,7 +227,7 @@ const readExcel = (inputFile, sheetName, firstRow) => {
 
   // Convertir les données de la feuille en JSON, lire à partir de la 2nde ligne les données en brut
   const data = XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
-  console.log("Données brutes :", data);
+  //TODEL console.log("Données brutes :", data);
 
   // Traiter les dates
   data.forEach(row => {
@@ -222,17 +250,27 @@ const writeExcel = (data, outputFile) => {
   // Appliquer un format numérique à toute la colonne "temperatureMin" et "temperatureMax"
   const columnTempMin = 'D'; // Colonne "temperatureMin"
   const columnTempMax = 'E'; // Colonne "temperatureMax"
+  const columnTempAverage = 'F'; // Colonne "temperatureMoyenne"
+  const columnTempMedian = 'G'; // Colonne "temperatureMediane"
   // Obtenir toutes les clés (adresses de cellules) de la feuille
   const range = XLSX.utils.decode_range(newSheet['!ref']);
   // Appliquer le format à chaque cellule de la colonne
   for (let row = range.s.r + 1; row <= range.e.r; row++) { // range.s.r + 1 pour éviter l'en-tête
     const cellAddressTempMin = `${columnTempMin}${row + 1}`; // +1 car les indices de ligne sont basés sur 0
     const cellAddressTempMax = `${columnTempMax}${row + 1}`;
+    const cellAddressTempAverage = `${columnTempAverage}${row + 1}`;
+    const cellAddressTempMedian = `${columnTempMedian}${row + 1}`;
     if (newSheet[cellAddressTempMin]) {
       newSheet[cellAddressTempMin].z = '0.00'; // Format numérique avec deux décimales
     }
     if (newSheet[cellAddressTempMax]) {
       newSheet[cellAddressTempMax].z = '0.00'; // Format numérique avec deux décimales
+    }
+    if (newSheet[cellAddressTempAverage]) {
+      newSheet[cellAddressTempAverage].z = '0.00'; // Format numérique avec deux décimales
+    }
+    if (newSheet[cellAddressTempMedian]) {
+      newSheet[cellAddressTempMedian].z = '0.00'; // Format numérique avec deux décimales
     }
   }
   XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Sheet1');
