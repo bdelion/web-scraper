@@ -192,6 +192,9 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
 
   // Tri des données par date
   datasWeather.sort((a, b) => a.dayjs.valueOf() - b.dayjs.valueOf());
+  
+  console.log("getWeatherDataBetween2Dates -> datasWeather : " + JSON.stringify(datasWeather, null, 2));
+
   // Initialisation de la structure qui contiendra les données filtrées entre la date/heure de début et de fin
   let filteredDatasWeather = [];
   // Filtrer les données sur une plage de dates
@@ -205,10 +208,10 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
     }
   });
 
+  console.log("getWeatherDataBetween2Dates -> value : " + JSON.stringify(filteredDatasWeather, null, 2));
+
   // Trier les données par température croissante
   filteredDatasWeather.sort((a, b) => a.temperature - b.temperature);
-
-  console.log("getWeatherDataBetween2Dates -> value : " + JSON.stringify(filteredDatasWeather, null, 2));
 
   // Initialisation d'un objet vide pour stocker la ligne de données du résultat
   const rowData = {};
