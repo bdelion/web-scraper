@@ -287,6 +287,7 @@ async function main() {
   const inputDatas = formatData(jsonResult);
   // Déclaration
   let stationId;
+  let precValueEnd;
 
   // Récupération de l'id de la station météo d'une ville donnée
   try {
@@ -302,7 +303,7 @@ async function main() {
   // Pour chacune des lignes, récuparation des infos
   for (const currentValue of inputDatas) {
     // La date/heure de début et de fin doivent être différente
-    if (currentValue.begin !== currentValue.end) {
+    if (!((currentValue.end - currentValue.begin) === 0)) {
       // Push du résultat entre deux dates/heures dans le tableau
       weatherDatas.push(
         // Récupération des températures entre deux dates/heures
@@ -312,6 +313,13 @@ async function main() {
           currentValue.end
         )
       );
+      precValueEnd = currentValue.end;
+    } else {
+      if ((precValueEnd - currentValue.begin) === 0) {
+        weatherDatas.push(weatherDatas[weatherDatas.length - 1]);
+      } else {
+        console.log("######### ALERTE : " + precValueEnd + "/" + currentValue.begin + "/" + currentValue.end + " #########");
+      }
     }
   }
 
