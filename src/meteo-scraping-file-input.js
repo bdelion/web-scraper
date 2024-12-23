@@ -129,6 +129,9 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
 
   // Trier les données par température croissante
   filteredDatasWeather.sort((a, b) => a.temperature - b.temperature);
+
+  console.log("getWeatherDataBetween2Dates -> value : " + JSON.stringify(filteredDatasWeather, null, 2));
+
   // Initialisation d'un objet vide pour stocker la ligne de données du résultat
   const rowData = {};
   rowData["idCommune"] = idCommune;
@@ -233,10 +236,10 @@ const readExcel = (inputFile, sheetName, firstRow) => {
   data.forEach(row => {
     // console.log("Ligne actuelle :", row); // Afficher chaque ligne pour voir la structure
     if (row.Date) {
-      console.log("Date avant transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date actuelle
+      //TODEL console.log("Date avant transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date actuelle
       // Transformer les dates si besoin
       row.Date = parseExcelDate(row.Date);
-      console.log("Date après transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date transformée
+      //TODEL console.log("Date après transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date transformée
     }
   });
 
