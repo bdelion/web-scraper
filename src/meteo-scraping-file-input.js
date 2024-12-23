@@ -6,7 +6,7 @@
 const XLSX = require("xlsx");
 const axios = require("axios");
 const cheerio = require("cheerio");
-const moment = require("moment");
+const dayjs = require("dayjs");
 
 // Obtenir la moyenne d'une propriété d'un tableau d'objet
 function getAverage(tableauObjets) {
@@ -36,12 +36,17 @@ function findMedian(tableauObjets) {
 
 // Scrapper les données sur le site pour une commune et une date données
 async function performScraping(idCommune, date) {
-  const momentDate = moment(date, "DD/MM/YYYY HH:mm:ss");
-  let day = momentDate.date();
-  let month = momentDate.month();
-  let year = momentDate.year();
+  const dayjsDate = dayjs(date, "DD/MM/YYYY HH:mm:ss");
+
+  console.log("performScraping -> dayjsDate : " + dayjsDate);
+
+  let day = dayjsDate.date();
+  let month = dayjsDate.month();
+  let year = dayjsDate.year();
   // URL de récupération des données
   let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${idCommune}&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
+
+  console.log("performScraping -> url : " + url);
   
   // Télécharger la page Web cible en effectuant une requête HTTP GET via Axios
   const axiosResponse = await axios.request({
@@ -82,11 +87,16 @@ async function performScraping(idCommune, date) {
       // Si ligne de données et température non vide
       if (!(dataLine[0] === "Heurelocale") && !(dataLine[2].trim().length === 0)) {
         rowData["idCommune"] = idCommune;
-        rowData["jour"] = momentDate.format("DD/MM/YYYY");
+        rowData["jour"] = dayjsDate.format("DD/MM/YYYY");
         rowData["heure"] = dataLine[0].replace("h", ":");
-        rowData["moment"] = moment(rowData["jour"] + " " + rowData["heure"], "DD/MM/YYYY HH:mm:ss");
+        rowData["dayjs"] = dayjs(rowData["jour"] + " " + rowData["heure"], "DD/MM/YYYY HH:mm:ss");
         //TODO Replace string by number
         rowData["temperature"] = dataLine[2].substring(0, dataLine[2].indexOf(" �C"));
+
+        //TODEL console.log("performScraping -> rowData[jour] : " + rowData["jour"]);
+        //TODEL console.log("performScraping -> rowData[heure] : " + rowData["heure"]);
+        //TODEL console.log("performScraping -> rowData[dayjs] : " + rowData["dayjs"]);
+
         // Ajout des données de la ligne au tableau des résultats retournés
         dataWeather.push(rowData);
       }
@@ -102,26 +112,38 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   
   // Initialisation de la structure qui contiendra les données scrapées sur le site
   let datasWeather = [];
-  const dateStart = moment(startDate, "DD/MM/YYYY HH:mm:ss");
-  const dateEnd = moment(endDate, "DD/MM/YYYY HH:mm:ss");
+  const dateStart = dayjs(startDate, "DD/MM/YYYY HH:mm:ss");
+  const dateEnd = dayjs(endDate, "DD/MM/YYYY HH:mm:ss");
   // On fixe la borne pour l'itération au jour suivant
-  const dateEndIteration = dateEnd.clone().add(1, "days");
+  const dateEndIteration = dateEnd.clone().add(1, "day");
+
+  console.log("getWeatherDataBetween2Dates -> dateStart : " + dateStart.format("DD/MM/YYYY HH:mm:ss"));
+  console.log("getWeatherDataBetween2Dates -> dateEnd : " + dateEnd.format("DD/MM/YYYY HH:mm:ss"));
+  console.log("getWeatherDataBetween2Dates -> dateEndIteration : " + dateEndIteration.format("DD/MM/YYYY HH:mm:ss"));
 
   let dateIteration = dateStart.clone();
   while (dateIteration < dateEndIteration) {
+
+    console.log("getWeatherDataBetween2Dates -> dateIteration : " + dateIteration.format("DD/MM/YYYY HH:mm:ss"));
+
     datasWeather = datasWeather.concat(
       await performScraping(idCommune, dateIteration)
     );
-    dateIteration.add(1, "days");
+
+    console.log("getWeatherDataBetween2Dates -> dateIteration before : " + dateIteration.format("DD/MM/YYYY HH:mm:ss"));
+
+    dateIteration.add(1, "day");
+
+    console.log("getWeatherDataBetween2Dates -> dateIteration after : " + dateIteration.format("DD/MM/YYYY HH:mm:ss"));
   }
 
   // Tri des données par date
-  datasWeather.sort((a, b) => a.moment - b.moment);
+  datasWeather.sort((a, b) => a.dayjs - b.dayjs);
   // Initialisation de la structure qui contiendra les données filtrées entre la date/heure de début et de fin
   let filteredDatasWeather = [];
   // Filtrer les données sur une plage de dates
   datasWeather.forEach(function (value) {
-    if (value["moment"] >= dateStart && value["moment"] <= dateEnd) {
+    if (value["dayjs"] >= dateStart && value["dayjs"] <= dateEnd) {
       // Ajouter la ligne de données au tableau des données filtrées
       filteredDatasWeather.push(value);
     }
@@ -133,7 +155,12 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   const rowData = {};
   rowData["idCommune"] = idCommune;
   rowData["date"] = endDate;
-  rowData["moment"] = dateEnd;
+  rowData["dayjs"] = dateEnd;
+
+  console.log("getWeatherDataBetween2Dates -> rowData[date] : " + rowData["date"]);
+  console.log("getWeatherDataBetween2Dates -> rowData[dayjs] : " + rowData["dayjs"]);
+
+
   // TODO faire des tests sans la transformations "." en "," et avec le formattage des données lors de l'écriture du fichier
   rowData["temperatureMin"] = filteredDatasWeather[0].temperature.replace(".", ",");
   rowData["temperatureMax"] = filteredDatasWeather[filteredDatasWeather.length - 1].temperature.replace(".", ",");
