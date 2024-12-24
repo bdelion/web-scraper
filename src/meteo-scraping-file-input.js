@@ -8,6 +8,14 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc'); // Plugin pour UTC
+const timezone = require('dayjs/plugin/timezone'); // Plugin pour timezone
+
+// Charger les plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 // Charger la locale française
 require('dayjs/locale/fr');
@@ -16,7 +24,8 @@ dayjs.locale('fr');
 // Appliquer le plugin customParseFormat pour gérer les formats personnalisés
 dayjs.extend(customParseFormat);
 
-const dateFormat = "DD/MM/YYYY HH:mm:ss";
+const dateFormat = "DD/MM/YYYY";
+const datehourFormat = "DD/MM/YYYY HH:mm:ss";
 
 // Obtenir la moyenne d'une propriété d'un tableau d'objet
 function getAverage(tableauObjets) {
@@ -46,13 +55,17 @@ function findMedian(tableauObjets) {
 
 // Scrapper les données sur le site pour une commune et une date données
 async function performScraping(idCommune, date) {
-  const dayjsDate = dayjs(date, dateFormat, true);
+  const dayjsDate = dayjs(date, datehourFormat, true);
+
+  console.log("performScraping ->  date.toISOString : " + date.toISOString());
+  console.log("performScraping ->  date.format : " + date.format(datehourFormat));
+  console.log("performScraping ->  date.toString : " + date.toString());
 
   //TODEL console.log("performScraping -> locale : " + dayjs.locale());
 
   //TODEL console.log("performScraping -> Date locale actuelle avec Day.js : ", dayjs().format());
 
-  //TODEL console.log("performScraping -> dayjsDate : " + dayjsDate.format(dateFormat));
+  //TODEL console.log("performScraping -> dayjsDate : " + dayjsDate.format(datehourFormat));
 
   let day = dayjsDate.date();
   let month = dayjsDate.month();
@@ -60,7 +73,7 @@ async function performScraping(idCommune, date) {
   // URL de récupération des données
   let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${idCommune}&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
 
-  //TODEL console.log("performScraping -> url : " + url);
+  console.log("performScraping -> url : " + url);
   
   // Télécharger la page Web cible en effectuant une requête HTTP GET via Axios
   const axiosResponse = await axios.request({
@@ -101,7 +114,7 @@ async function performScraping(idCommune, date) {
       // Si ligne de données et température non vide
       if (!(dataLine[0] === "Heurelocale") && !(dataLine[2].trim().length === 0)) {
         rowData["idCommune"] = idCommune;
-        rowData["jour"] = dayjsDate.format("DD/MM/YYYY");
+        rowData["jour"] = dayjsDate.format(dateFormat);
 
         //TODEL console.log("performScraping ->rowData[jour] : " + rowData["jour"]);
 
@@ -116,6 +129,7 @@ async function performScraping(idCommune, date) {
 
         // Vérifie et complète les heures et minutes si nécessaire
         const heureParts = cleanedHeure.split(":");
+
         if (heureParts.length === 2) {
           // Complète les heures et minutes à deux chiffres
           const heures = heureParts[0].padStart(2, "0");
@@ -127,20 +141,26 @@ async function performScraping(idCommune, date) {
         
         const fullDateStr = `${cleanedJour} ${cleanedHeure}:00`; // Ajoute les secondes par défaut        
 
-        //TODEL console.log("performScraping ->  fullDateStr : " + fullDateStr);
+        console.log("performScraping ->  fullDateStr : " + fullDateStr);
 
-        rowData["dayjs"] = dayjs(fullDateStr, dateFormat, true);
+        //TODO? rowData["dayjs"] = dayjs(fullDateStr, datehourFormat, true);
+        rowData["dayjs"] = dayjs(fullDateStr, datehourFormat, true);
 
-        //TODEL console.log("performScraping ->  rowData[dayjs].toISOString : " + rowData["dayjs"].toISOString());
-        //TODEL console.log("performScraping ->  rowData[dayjs].format : " + rowData["dayjs"].format(dateFormat));
+        console.log("performScraping ->  rowData[dayjs] : " + rowData["dayjs"]);
+        console.log("performScraping ->  rowData[dayjs].tz : " + rowData["dayjs"].tz('Europe/Paris'));
+        console.log("performScraping ->  rowData[dayjs].toISOString : " + rowData["dayjs"].toISOString());
+        console.log("performScraping ->  rowData[dayjs].format : " + rowData["dayjs"].format(datehourFormat));
+        console.log("performScraping ->  rowData[dayjs].toString : " + rowData["dayjs"].toString());
 
-        //TODEL? rowData["dayjs"] = dayjs(rowData["jour"] + " " + rowData["heure"], dateFormat, true);
+        process.exit(1);
+
+        //TODEL? rowData["dayjs"] = dayjs(rowData["jour"] + " " + rowData["heure"], datehourFormat, true);
 
         if (!rowData["dayjs"].isValid()) {
           console.error("performScraping ->  La date n'est pas valide :", fullDateStr);
           process.exit(1);  // Arrête l'exécution du script avec un code d'erreur (1)
         } else {
-          //TODEL console.log("performScraping ->  Date valide :", rowData["dayjs"].format(dateFormat));
+          //TODEL console.log("performScraping ->  Date valide :", rowData["dayjs"].format(datehourFormat));
         }
 
         //TODO Replace string by number
@@ -162,32 +182,38 @@ async function performScraping(idCommune, date) {
 // Récupération des températures d'une commune entre une date/heure de début et de fin
 async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   console.log("idCommune: " + idCommune + " / startDate: " + startDate + " / endDate: " + endDate);
+      
+  console.log("getWeatherDataBetween2Dates ->  startDate.toISOString : " + startDate.toISOString());
+  console.log("getWeatherDataBetween2Dates ->  startDate.format : " + startDate.format(datehourFormat));
+  console.log("getWeatherDataBetween2Dates ->  startDate.toString : " + startDate.toString());
+  console.log("getWeatherDataBetween2Dates ->  endDate.toISOString : " + endDate.toISOString());
+  console.log("getWeatherDataBetween2Dates ->  endDate.format : " + endDate.format(datehourFormat));
+  console.log("getWeatherDataBetween2Dates ->  endDate.toString : " + endDate.toString());
   
   // Initialisation de la structure qui contiendra les données scrapées sur le site
   let datasWeather = [];
-  const dateStart = dayjs(startDate, dateFormat, true);
-  const dateEnd = dayjs(endDate, dateFormat, true);
+  //TODEL? const dateStart = dayjs(startDate, datehourFormat, true);
+  //TODEL? const dateEnd = dayjs(endDate, datehourFormat, true);
   // On fixe la borne pour l'itération au jour suivant
-  const dateEndIteration = dateEnd.clone().add(1, "day");
+  //TODO? const dateEndIteration = endDate.clone().add(1, "day");
+  const dateEndIteration = endDate.clone();
+  let dateIteration = startDate.clone();
 
-  //TODEL console.log("getWeatherDataBetween2Dates -> dateStart : " + dateStart.format(dateFormat));
-  //TODEL console.log("getWeatherDataBetween2Dates -> dateEnd : " + dateEnd.format(dateFormat));
-  //TODEL console.log("getWeatherDataBetween2Dates -> dateEndIteration : " + dateEndIteration.format(dateFormat));
-
-  let dateIteration = dateStart.clone();
   while (dateIteration.isBefore(dateEndIteration)) {  // Utilisation de .isBefore() pour la comparaison
 
-    //TODEL console.log("getWeatherDataBetween2Dates -> dateIteration : " + dateIteration.format(dateFormat));
+    console.log("getWeatherDataBetween2Dates ->  dateIteration.toISOString : " + dateIteration.toISOString());
+    console.log("getWeatherDataBetween2Dates ->  dateIteration.format : " + dateIteration.format(datehourFormat));
+    console.log("getWeatherDataBetween2Dates ->  dateIteration.toString : " + dateIteration.toString());
 
     datasWeather = datasWeather.concat(
       await performScraping(idCommune, dateIteration)
     );
 
-    //TODEL console.log("getWeatherDataBetween2Dates -> dateIteration before : " + dateIteration.format(dateFormat));
+    //TODEL console.log("getWeatherDataBetween2Dates -> dateIteration before : " + dateIteration.format(datehourFormat));
 
     dateIteration = dateIteration.add(1, "day");  // Réassignation après modification de dateIteration
 
-    //TODEL console.log("getWeatherDataBetween2Dates -> dateIteration after : " + dateIteration.format(dateFormat));
+    //TODEL console.log("getWeatherDataBetween2Dates -> dateIteration after : " + dateIteration.format(datehourFormat));
   }
 
   // Tri des données par date
@@ -202,7 +228,11 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
 
     //TODEL console.log("getWeatherDataBetween2Dates -> value : " + JSON.stringify(value, null, 2));
 
-    if (value["dayjs"].valueOf() >= dateStart.valueOf() && value["dayjs"].valueOf() <= dateEnd.valueOf()) {
+    //TODEL console.log("getWeatherDataBetween2Dates -> dateStart : " + dayjs(dateStart, datehourFormat, true).toString());
+    //TODEL console.log("getWeatherDataBetween2Dates -> value[dayjs] : " + dayjs(value["dayjs"], datehourFormat, true).toString());
+    //TODEL console.log("getWeatherDataBetween2Dates -> dateEnd : " + dayjs(dateEnd, datehourFormat, true).toString());
+
+    if (value["dayjs"].valueOf() >= startDate.valueOf() && value["dayjs"].valueOf() <= endDate.valueOf()) {
       // Ajouter la ligne de données au tableau des données filtrées
       filteredDatasWeather.push(value);
     }
@@ -217,7 +247,7 @@ async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
   const rowData = {};
   rowData["idCommune"] = idCommune;
   rowData["date"] = endDate;
-  rowData["dayjs"] = dateEnd;
+  rowData["dayjs"] = endDate;
 
   //TODEL console.log("getWeatherDataBetween2Dates -> rowData[date] : " + rowData["date"]);
   //TODEL console.log("getWeatherDataBetween2Dates -> rowData[dayjs] : " + rowData["dayjs"]);
@@ -270,8 +300,10 @@ const formatData = (jsonArray) => {
     // Initialisation d'un objet vide pour stocker les données de la ligne
     const rowData = {};
     // On ne veut que les intervalles sans données de températures
-    //TOREDO if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) {
-      if ((previousDate !== "")) {
+    
+    //######################################### TOREDO if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) { #########################################
+    
+    if ((previousDate !== "")) {
       rowData["begin"] = previousDate;
       rowData["end"] = entry.Date;
       dateArray.push(rowData);
@@ -308,6 +340,13 @@ const parseExcelDate = (excelDate) => {
   return excelEpoch;
 };
 
+// Transformation de la date d'un format number en un format object (ex : 2024-09-07T05:59:00.000Z)
+function excelDateToJSDate(serial) {
+  const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+  const daysOffset = serial >= 60 ? serial - 2 : serial - 1; // Bug Excel 1900
+  return new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+}
+
 // Lecture du fichier Excel et enregistrement dans un json
 const readExcel = (inputFile, sheetName, firstRow) => {
   const workbook = XLSX.readFile(inputFile);
@@ -319,11 +358,11 @@ const readExcel = (inputFile, sheetName, firstRow) => {
   
   //TODEL console.log("Données brutes :", data);
 
-  data.forEach((row, index) => {
+/*   data.forEach((row, index) => {
     //TODEL console.log(`Row ${index + 1}:`, row);
     const fullDateStr = row["Date"]; // Remplace "Date" par le nom de ta colonne
-    //TODEL console.log(`Value in "Date" column:`, fullDateStr, typeof fullDateStr);
-  });
+    console.log(`Value in "Date" column:`, fullDateStr, typeof fullDateStr);
+  }); */
 
   // Exemple : si tu veux travailler sur la première ligne et vérifier les dates
   data.forEach(row => {
@@ -331,10 +370,30 @@ const readExcel = (inputFile, sheetName, firstRow) => {
   
     // Si la valeur est un nombre (timestamp Excel), convertis-la en date
     if (typeof fullDateStr === "number") {
-      // Convertir le timestamp Excel (nombre de jours) en millisecondes
-    // Excel commence le 1er janvier 1900, tandis que JavaScript commence le 1er janvier 1970
-    const excelDate = (fullDateStr - 25569) * 86400 * 1000; // Calcul du nombre de millisecondes
-    const parsedDate = dayjs(excelDate);
+      console.log("readExcel --> fullDateStr is Number : " + fullDateStr);
+      console.log("readExcel --> excelDateToJSDate(fullDateStr) : " + excelDateToJSDate(fullDateStr));
+      
+      let parsedDate;
+      parsedDate = dayjs(excelDateToJSDate(fullDateStr)).tz('Europe/Paris');
+
+      console.log("readExcel --> parsedDate : " + parsedDate);
+
+      if (parsedDate && parsedDate.isValid()) {
+        console.log("readExcel --> parsedDate formatée :", parsedDate.format("DD/MM/YYYY HH:mm:ss"));
+        console.log("readExcel --> parsedDate formatée en utc :", parsedDate.utc().format("DD/MM/YYYY HH:mm:ss"));
+        row.Date=parsedDate;
+      } else {
+        console.error("Impossible de parser la date :", fullDateStr);
+        process.exit(1);
+      }
+    }
+  });
+
+
+/*       // Convertir le timestamp Excel (nombre de jours) en millisecondes
+      // Excel commence le 1er janvier 1900, tandis que JavaScript commence le 1er janvier 1970
+      const excelDate = (fullDateStr - 25569) * 86400 * 1000; // Calcul du nombre de millisecondes
+      const parsedDate = dayjs(excelDate);
   
       if (!parsedDate.isValid()) {
         console.error("Invalid date format", fullDateStr);
@@ -343,6 +402,8 @@ const readExcel = (inputFile, sheetName, firstRow) => {
         //TODEL console.log("Parsed date number:", parsedDate.format("DD MMMM YYYY HH:mm"));
       }
     } else if (fullDateStr instanceof Date) {
+      console.log("readExcel --> fullDateStr is Date");
+
       // Si c'est déjà un objet Date natif
       const parsedDate = dayjs(fullDateStr);
   
@@ -352,7 +413,7 @@ const readExcel = (inputFile, sheetName, firstRow) => {
         console.log("Parsed date:", parsedDate.format("DD MMMM YYYY HH:mm"));
       }
     } else {
-      console.error("Non-date value:", fullDateStr);
+      console.error("readExcel --> Non-date value:", fullDateStr);
     }
   });
 
@@ -366,7 +427,7 @@ const readExcel = (inputFile, sheetName, firstRow) => {
       row.Date = dayjs((row.Date - 25569) * 86400 * 1000);
       //TODEL console.log("Date après transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date transformée
     }
-  });
+  }); */
 
   return data;
 };
@@ -374,7 +435,7 @@ const readExcel = (inputFile, sheetName, firstRow) => {
 // Écriture du fichier Excel avec les dates et nombres formatés à partir du json des résultats
 const writeExcel = (data, outputFile) => {
   const newWorkbook = XLSX.utils.book_new();
-  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: dateFormat});
+  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: datehourFormat});
   // Appliquer un format numérique à toute la colonne "temperatureMin" et "temperatureMax"
   const columnTempMin = 'D'; // Colonne "temperatureMin"
   const columnTempMax = 'E'; // Colonne "temperatureMax"
@@ -411,8 +472,14 @@ let weatherDatas = [];
 async function main() {
   // Lecture des données sources à partir d'une feuille d'un fichier Excel donné
   const jsonResult = readExcel("assets/InputData.xlsx", "Suivi Conso New", 2);
+
+  console.log("main -> jsonResult : " + JSON.stringify(jsonResult, null, 2));
+
   // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
   const inputDatas = formatData(jsonResult);
+
+  console.log("main -> inputDatas : " + JSON.stringify(inputDatas, null, 2));
+
   // Déclaration
   let stationId;
   let precValueEnd;
@@ -432,8 +499,14 @@ async function main() {
   for (const currentValue of inputDatas) {
     // La date/heure de début et de fin doivent être différente
     if (!((currentValue.end - currentValue.begin) === 0)) {
-      //TODEL console.log("main -> begin : " + currentValue.begin.toISOString);
-      //TODEL console.log("main -> end : " + currentValue.end);
+      
+      //TODEL console.log("main ->  currentValue.begin.toISOString : " + currentValue.begin.toISOString());
+      //TODEL console.log("main ->  currentValue.begin.format : " + currentValue.begin.format(datehourFormat));
+      //TODEL console.log("main ->  currentValue.begin.toString : " + currentValue.begin.toString());
+      //TODEL console.log("main ->  currentValue.end.toISOString : " + currentValue.end.toISOString());
+      //TODEL console.log("main ->  currentValue.end.format : " + currentValue.end.format(datehourFormat));
+      //TODEL console.log("main ->  currentValue.end.toString : " + currentValue.end.toString());
+
       // Push du résultat entre deux dates/heures dans le tableau
       weatherDatas.push(
         // Récupération des températures entre deux dates/heures
@@ -462,6 +535,9 @@ async function main() {
 // Save result in Excel file
 main()
   .then((result) => {
+
+    //TODEL console.log("main -> result : " + JSON.stringify(result, null, 2));
+
     // Sauvegarde des résultats
     writeExcel(result, "assets/OutputData.xlsx");
   })
