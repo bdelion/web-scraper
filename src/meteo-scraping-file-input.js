@@ -374,9 +374,17 @@ const readExcel = (inputFile, sheetName, firstRow) => {
       console.log("readExcel --> excelDateToJSDate(fullDateStr) : " + excelDateToJSDate(fullDateStr));
       
       let parsedDate;
-      parsedDate = dayjs(excelDateToJSDate(fullDateStr)).tz('Europe/Paris');
+      parsedDate = dayjs(excelDateToJSDate(fullDateStr)).utc();
 
       console.log("readExcel --> parsedDate : " + parsedDate);
+      console.log(parsedDate);
+
+      parsedDate = parsedDate.tz('Europe/Paris', true); // true pour ne pas modifier l'heure interne
+
+      console.log("readExcel --> parsedDate : " + parsedDate);
+      console.log(parsedDate);
+      console.log("Date formatée : ", parsedDate.format("DD/MM/YYYY HH:mm:ss"));
+      process.exit(1);
 
       if (parsedDate && parsedDate.isValid()) {
         console.log("readExcel --> parsedDate formatée :", parsedDate.format("DD/MM/YYYY HH:mm:ss"));

@@ -32,6 +32,7 @@ data.forEach(row => {
   if (typeof cellValue === "number") {
     // Cas 1 : Nombre Excel
     const jsDate = excelDateToJSDate(cellValue); // Convertir en date UTC
+    console.log(jsDate);
     parsedDate = dayjs(jsDate).utc(); // Créer l'objet Day.js en UTC
   } else if (typeof cellValue === "string") {
     // Cas 2 : Texte formaté
@@ -39,10 +40,16 @@ data.forEach(row => {
   }
 
   console.log(parsedDate);
+  console.log("parsedDate : " + JSON.stringify(parsedDate, null, 2));
 
   if (parsedDate && parsedDate.isValid()) {
     // Applique le fuseau horaire Europe/Paris mais sans décaler l'heure interne
     const parisTime = parsedDate.tz('Europe/Paris', true); // true pour ne pas modifier l'heure interne
+
+    console.log(parisTime);
+    console.log("parisTime : " + JSON.stringify(parisTime, null, 2));
+    
+    console.log(parsedDate-parisTime);
 
     console.log("Date formatée : ", parisTime.format("DD/MM/YYYY HH:mm:ss"));
     console.log("Date en UTC :", parisTime.utc().format("DD/MM/YYYY HH:mm:ss"));
