@@ -384,7 +384,6 @@ const readExcel = (inputFile, sheetName, firstRow) => {
       console.log("readExcel --> parsedDate : " + parsedDate);
       console.log(parsedDate);
       console.log("Date formatée : ", parsedDate.format("DD/MM/YYYY HH:mm:ss"));
-      process.exit(1);
 
       if (parsedDate && parsedDate.isValid()) {
         console.log("readExcel --> parsedDate formatée :", parsedDate.format("DD/MM/YYYY HH:mm:ss"));
