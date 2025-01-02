@@ -30,10 +30,16 @@ const USER_AGENT = "Mozilla/5.0";
 // === CLASSES ===
 
 class ScrapingError extends Error {
-  constructor(message, context = {}) {
+  constructor(message, details) {
     super(message);
-    this.name = "ScrapingError";
-    this.context = context; // Contexte supplémentaire, comme l'URL ou les paramètres
+    this.details = details;
+  }
+
+  static fromResponseError(url, response) {
+    return new ScrapingError(
+      `HTTP error: Received ${response.status} (${response.statusText}) at ${url}`,
+      { response }
+    );
   }
 }
 
@@ -84,25 +90,24 @@ function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
 
 // Fonction pour convertir une date Excel (nombre) en chaine de caractère
 function JSDateToString(excelDate) {
+  let parsedDate
+
   // Si la valeur est un nombre (timestamp Excel), convertis-la en date
   if (typeof excelDate === "number") {
     try {
       // Conversion du nombre Excel en date Dayjs
-      let parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
+      parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
       // Vérification de la validité de la date
       if (parsedDate.isValid()) {
         return parsedDate.format(DATEHOUR_FORMAT);
       } else {
-        throw new Error("Date invalide");
+        throw new Error(`Date invalide, skipped: ${excelDate} -> ${parsedDate}`);
       }
     } catch (error) {
-      console.error(`Impossible de parser la date : ${excelDate}`);
-      console.error(error.message);
-      process.exit(1); // Arrêt du script en cas d'erreur
+      throw new Error(`Impossible de parser la date, skipped: ${excelDate} -> ${parsedDate} / ${error.message}`);
     }
   } else {
-    console.error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
-    process.exit(1); // Arrêt du script en cas d'erreur
+    throw new Error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
   }
 }
 
@@ -135,49 +140,96 @@ function cleanTemperature(temp) {
   return isNaN(parsedTemp) ? null : parsedTemp;
 }
 
-// Lecture d'un onglet d'un fichier Excel à partir d'une ligne indiquée
+/**
+ * Reads data from a specified sheet in an Excel file, starting from a specific row.
+ * 
+ * This function loads an Excel file, accesses the specified sheet by its name, and 
+ * retrieves the data starting from the row indicated by the `firstRow` parameter. 
+ * It returns the data as a JSON object.
+ * 
+ * @param {string} inputFile - The path to the input Excel file.
+ * @param {string} sheetName - The name of the sheet to read data from.
+ * @param {number} firstRow - The row number from which to start reading data (1-based index).
+ * @returns {Array} - The data from the specified sheet starting from the `firstRow`, formatted as an array of JSON objects.
+ */
 function readExcel(inputFile, sheetName, firstRow) {
+  // Read the Excel file into a workbook object
   const workbook = XLSX.readFile(inputFile);
+
+  // Access the specified sheet by name
   const sheet = workbook.Sheets[sheetName];
+
+  // Convert the sheet data to JSON starting from the specified row, with raw data for cells
   const data = XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
+
+  // Return the extracted data
   return data;
 }
 
-// Écriture du fichier Excel avec les dates et nombres formatés à partir du json des résultats
+/**
+ * Writes an Excel file with formatted dates and numbers from the provided JSON data.
+ * The function creates a new workbook, converts the JSON data into a sheet, applies specific formatting 
+ * for dates and numerical values, and writes the result to an output file.
+ * 
+ * @param {Array} data - The JSON data to be written to the Excel sheet.
+ * @param {string} outputFile - The path and name of the output file where the Excel file will be saved.
+ */
 const writeExcel = (data, outputFile) => {
+  // Create a new workbook
   const newWorkbook = XLSX.utils.book_new();
-  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: DATEHOUR_FORMAT});
-  // Appliquer un format numérique à toute la colonne "temperatureMin" et "temperatureMax"
-  const columnTempMin = 'D'; // Colonne "temperatureMin"
-  const columnTempMax = 'E'; // Colonne "temperatureMax"
-  const columnTempAverage = 'F'; // Colonne "temperatureMoyenne"
-  const columnTempMedian = 'G'; // Colonne "temperatureMediane"
-  // Obtenir toutes les clés (adresses de cellules) de la feuille
+  
+  // Convert the JSON data into a sheet, ensuring date cells are formatted correctly
+  const newSheet = XLSX.utils.json_to_sheet(data, {
+    cellDates: true,
+    dateNF: DATEHOUR_FORMAT, // Date format: day/month/year hour:minute:second
+  });
+
+  // Define the columns that need to have a numerical format applied
+  const columnsToFormat = ['D', 'E', 'F', 'G']; // For columns like minTemperature, maxTemperature, etc.
+  
+  // Decode the range of the sheet to loop through the data rows
   const range = XLSX.utils.decode_range(newSheet['!ref']);
-  // Appliquer le format à chaque cellule de la colonne
-  for (let row = range.s.r + 1; row <= range.e.r; row++) { // range.s.r + 1 pour éviter l'en-tête
-    const cellAddressTempMin = `${columnTempMin}${row + 1}`; // +1 car les indices de ligne sont basés sur 0
-    const cellAddressTempMax = `${columnTempMax}${row + 1}`;
-    const cellAddressTempAverage = `${columnTempAverage}${row + 1}`;
-    const cellAddressTempMedian = `${columnTempMedian}${row + 1}`;
-    if (newSheet[cellAddressTempMin]) {
-      newSheet[cellAddressTempMin].z = '0.00'; // Format numérique avec deux décimales
-    }
-    if (newSheet[cellAddressTempMax]) {
-      newSheet[cellAddressTempMax].z = '0.00'; // Format numérique avec deux décimales
-    }
-    if (newSheet[cellAddressTempAverage]) {
-      newSheet[cellAddressTempAverage].z = '0.00'; // Format numérique avec deux décimales
-    }
-    if (newSheet[cellAddressTempMedian]) {
-      newSheet[cellAddressTempMedian].z = '0.00'; // Format numérique avec deux décimales
-    }
+  
+  // Iterate over the rows in the sheet (skip the header row)
+  for (let row = range.s.r + 1; row <= range.e.r; row++) {
+    columnsToFormat.forEach((col) => {
+      const cellAddress = `${col}${row + 1}`; // Construct the cell address (e.g., D2, E3, etc.)
+      
+      // Check if the cell exists and apply the format
+      if (newSheet[cellAddress]) {
+        newSheet[cellAddress].z = '0.00'; // Apply number format with two decimal places (e.g., 0.00)
+      }
+    });
   }
+
+  // Append the sheet to the workbook
   XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Sheet1');
+  
+  // Write the workbook to a file with the specified output path
   XLSX.writeFile(newWorkbook, outputFile);
 };
 
 // === SCRAPING DES DONNÉES MÉTÉO ===
+
+function processWeatherRow(row, $, date, weatherStationId) {
+  const { heure, temperature } = extractWeatherDataRow(row, $);
+  if (!heure || !temperature || heure === "Heurelocale") return null;
+
+  const formattedHour = formatHour(heure);
+  const fullDate = dayjs
+    .utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT)
+    .tz("Europe/Paris", true);
+
+  if (!fullDate.isValid()) return null;
+
+  return {
+    weatherStationId,
+    heure: formattedHour,
+    temperature: cleanTemperature(temperature),
+    dayjs: fullDate,
+    dayjsFormated: fullDate.format(DATEHOUR_FORMAT),
+  };
+}
 
 /**
  * Récupère les données météo pour une commune et une date.
@@ -190,13 +242,17 @@ async function performObservationScraping(weatherStationId, date) {
     throw new ScrapingError("Invalid 'weatherStationId'", { weatherStationId });
   }
   if (!dayjs.isDayjs(date) || !date.isValid()) {
-    throw new ScrapingError("Invalid 'date'", { date });
+    throw new ScrapingError(`Invalid 'date': expected a valid dayjs object but received ${typeof date}`, { date });
   }
 
   const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${weatherStationId}&jour2=${date.date()}&mois2=${date.month()}&annee2=${date.year()}&affint=1`;
 
   try {
     const response = await axios.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (response.status !== 200) {
+      throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
+    }
+
     const $ = cheerio.load(response.data);
     const table = $('table:nth-child(3)[width="100%"]');
     if (!table.length) {
@@ -205,29 +261,21 @@ async function performObservationScraping(weatherStationId, date) {
 
     const dataWeather = [];
     table.find("tbody tr").each((_, row) => {
-      const { heure, temperature } = extractWeatherDataRow(row, $);
-      if (heure && temperature && heure !== "Heurelocale") {
-        const formattedHour = formatHour(heure);
-        const fullDate = dayjs.utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT).tz('Europe/Paris', true);
-
-        if (fullDate.isValid()) {
-          dataWeather.push({
-            weatherStationId,
-            heure: formattedHour,
-            temperature: cleanTemperature(temperature),
-            dayjs: fullDate,
-            dayjsFormated: fullDate.format(DATEHOUR_FORMAT)
-          });
-        }
-      }
-    });
+      const data = processWeatherRow(row, $, date, weatherStationId);
+      if (data) dataWeather.push(data);
+    });    
 
     return dataWeather;
   } catch (error) {
-    if (error instanceof ScrapingError) {
-      throw error; // Relance l'erreur personnalisée
+    if (error.response) {
+      // Erreur HTTP
+      throw new ScrapingError(`HTTP error on ${url}: ${error.response.statusText} (${error.response.status})`, { url });
     }
-    throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
+    if (error.request) {
+      // Erreur réseau
+      throw new ScrapingError(`Network error while accessing ${url}`, { url, originalError: error });
+    }
+    throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
   }
 }
 
@@ -240,12 +288,12 @@ async function performIdStationScraping(weatherStationName) {
   if (typeof weatherStationName !== 'string' || !weatherStationName.trim()) {
     throw new ScrapingError("Invalid 'weatherStationName'", { weatherStationName });
   }
+  
+  // Encode le nom de la station pour l'inclure correctement dans l'URL
+  const encodedStationName = encodeURIComponent(weatherStationName);
+  const url = `${BASE_URL}${encodedStationName}`;
 
   try {
-    // Encode le nom de la station pour l'inclure correctement dans l'URL
-    const encodedStationName = encodeURIComponent(weatherStationName);
-    const url = `${BASE_URL}${encodedStationName}`;
-
     // Effectue la requête POST pour récupérer l'ID de la station
     const response = await axios.post(url, {}, {
       headers: { "User-Agent": USER_AGENT } // Simule un navigateur
@@ -366,8 +414,6 @@ const formatData = (jsonArray) => {
   const firstRow = 2;
   const weatherStationName = "Bressuire";
 
-  const start = performance.now();
-
   // Lecture du fichier Excel
   const jsonExcelData = readExcel(excelFile, sheetName, firstRow);
 
@@ -424,8 +470,18 @@ const formatData = (jsonArray) => {
 
   // Sauvegarde des résultats
   writeExcel(weatherData, "assets/OutputData.xlsx");
-
-  const end = performance.now();
-  console.log(`Temps d'exécution : ${(end - start).toFixed(2)} ms`);
-
 })().catch((err) => console.error(err));
+
+// Exportation des fonctions
+module.exports = {
+  getAverage,
+  findMedian,
+  excelDateToDayjs,
+  formatHour,
+  cleanTemperature,
+  ScrapingError,
+  performIdStationScraping,
+  performObservationScraping,
+  JSDateToString,
+  writeExcel
+};
