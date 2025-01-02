@@ -2,251 +2,151 @@
 
 "use strict";
 
-// Requiring the module
+// === MODULES IMPORTÉS ===
 const XLSX = require("xlsx");
 const axios = require("axios");
 const cheerio = require("cheerio");
-const moment = require("moment");
+const dayjs = require("dayjs");
+const customParseFormat = require("dayjs/plugin/customParseFormat");
+const utc = require('dayjs/plugin/utc'); // Plugin pour UTC
+const timezone = require('dayjs/plugin/timezone'); // Plugin pour timezone
 
-// Obtenir la moyenne d'une propriété d'un tableau d'objet
-function getAverage(tableauObjets) {
-  let sum = 0;
+// === CONFIGURATION DAYJS ===
+dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+require('dayjs/locale/fr');  // Charger la locale française
+dayjs.locale('fr');  // Appliquer la locale par défaut à toutes les instances de Day.js
 
-  //TODO avec reduce https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce
+// === CONSTANTES ===
+const DATE_FORMAT = "DD/MM/YYYY";
+const HOUR_FORMAT = "HH:mm:ss";
+const DATEHOUR_FORMAT = "DD/MM/YYYY HH:mm:ss";
+// URL de l'API pour la récupération de l'ID de station
+const BASE_URL = 'https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=';
+// Constante pour l'en-tête User-Agent
+const USER_AGENT = "Mozilla/5.0";
 
-  if(!tableauObjets.length){
-    return sum;  
+// === CLASSES ===
+
+class ScrapingError extends Error {
+  constructor(message, context = {}) {
+    super(message);
+    this.name = "ScrapingError";
+    this.context = context; // Contexte supplémentaire, comme l'URL ou les paramètres
   }
-  for (let i = 0; i < tableauObjets.length; i++){
-    sum += Number(tableauObjets[i].temperature);
-  }
-  return (sum / tableauObjets.length).toFixed(2).toString();
 }
 
-// Obtenir la valeur médiane d'un tableau
-function findMedian(tableauObjets) {
-  tableauObjets.sort((a, b) => a.temperature - b.temperature);
-  const middleIndex = Math.floor(tableauObjets.length / 2);
-  if (tableauObjets.length % 2 === 0) {
-    return ((Number(tableauObjets[middleIndex - 1].temperature) + Number(tableauObjets[middleIndex].temperature)) / 2).toFixed(2).toString();
-  } else {
-    return tableauObjets[middleIndex].temperature.toString();
-  }
+// === FONCTIONS UTILITAIRES ===
+
+// Calcule la moyenne d'un tableau de températures
+function getAverage(...numbers) {
+  if (numbers.length === 0) return "0"; // Si aucun argument, renvoyer "0"
+
+  const sum = numbers.reduce((acc, temp) => acc + temp, 0);
+  return (sum / numbers.length).toFixed(2);
 }
 
-// Scrapper les données sur le site pour une commune et une date données
-async function performScraping(idCommune, date) {
-  const momentDate = moment(date, "DD/MM/YYYY HH:mm:ss");
-  let day = momentDate.date();
-  let month = momentDate.month();
-  let year = momentDate.year();
-  // URL de récupération des données
-  let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${idCommune}&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
+// Calcule la médiane d'un tableau de nombres
+function findMedian(...numbers) {
+  if (numbers.length === 0) return "0"; // Si aucun argument, renvoyer "0"
   
-  // Télécharger la page Web cible en effectuant une requête HTTP GET via Axios
-  const axiosResponse = await axios.request({
-    method: "GET",
-    url: url,
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-    },
-  });
+  // Tri des températures par ordre croissant
+  numbers.sort((a, b) => a - b);
+  
+  const middle = Math.floor(numbers.length / 2);
 
-  // Analyser la source HTML de la page Web cible avec Cheerio
-  const $ = cheerio.load(axiosResponse.data);
+  // Si le nombre d'éléments est pair, on retourne la moyenne des deux éléments du milieu
+  return (numbers.length % 2 === 0
+    ? ((numbers[middle - 1] + numbers[middle]) / 2)
+    : numbers[middle]
+  ).toFixed(2);
+}
 
-  // Sélection de l'élément dans la source HTML
-  const table = $('table:nth-child(3)[width="100%"]');
+// Fonction pour convertir une date Excel (nombre) en date Dayjs en appliquant le fuseau horaire
+function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000; // Millisecondes par jour
+  const excelEpoch = Date.UTC(1900, 0, 1); // 1er janvier 1900 UTC
 
-  // Initialisation de la structure de données qui contiendra les données scrapées
-  const dataWeather = [];
+  // Ajustement pour le bug de l'année 1900
+  const daysOffset = serial >= 60 ? serial - 2 : serial - 1;
+  // Conversion en millisecondes avec arrondi pour éviter les imprécisions
+  const exactMilliseconds = Math.round(daysOffset * MS_PER_DAY);
+  // Conversion en date UTC
+  const utcDate = new Date(excelEpoch + exactMilliseconds);
+  // Création d'un objet dayjs en UTC
+  const dateInUTC = dayjs.utc(utcDate);
+  // Appliquer le fuseau horaire à cette date UTC
+  const finalDate = dateInUTC.tz(timezoneString, true); // `true` pour éviter l'ajout d'un offset supplémentaire
 
-  // Parcours de chaque ligne du contenu scrapé en utilisant les méthodes find et each
-  table
-    .find("tbody")
-    .find("tr")
-    .each((i, row) => {
-      // Initialisation d'un objet vide pour stocker les données de la ligne
-      const rowData = {};
+  return finalDate;
+}
 
-      // Parcours de chaque cellule de la ligne en utilisant les méthodes find et each
-      const dataLine = [];
-      $(row)
-        .find("td")
-        .each((j, cell) => {
-          // Ajout des données de la cellule à une ligne de l'objet de données
-          dataLine.push($(cell).text());
-        });
-
-      // Si ligne de données et température non vide
-      if (!(dataLine[0] === "Heurelocale") && !(dataLine[2].trim().length === 0)) {
-        rowData["idCommune"] = idCommune;
-        rowData["jour"] = momentDate.format("DD/MM/YYYY");
-        rowData["heure"] = dataLine[0].replace("h", ":");
-        rowData["moment"] = moment(rowData["jour"] + " " + rowData["heure"], "DD/MM/YYYY HH:mm:ss");
-        //TODO Replace string by number
-        rowData["temperature"] = dataLine[2].substring(0, dataLine[2].indexOf(" �C"));
-        // Ajout des données de la ligne au tableau des résultats retournés
-        dataWeather.push(rowData);
+// Fonction pour convertir une date Excel (nombre) en chaine de caractère
+function JSDateToString(excelDate) {
+  // Si la valeur est un nombre (timestamp Excel), convertis-la en date
+  if (typeof excelDate === "number") {
+    try {
+      // Conversion du nombre Excel en date Dayjs
+      let parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
+      // Vérification de la validité de la date
+      if (parsedDate.isValid()) {
+        return parsedDate.format(DATEHOUR_FORMAT);
+      } else {
+        throw new Error("Date invalide");
       }
-    });
-
-  // Renvoie des données du tableau
-  return dataWeather;
-}
-
-// Récupération des températures d'une commune entre une date/heure de début et de fin
-async function getWeatherDataBetween2Dates(idCommune, startDate, endDate) {
-  console.log("idCommune: " + idCommune + " / startDate: " + startDate + " / endDate: " + endDate);
-  
-  // Initialisation de la structure qui contiendra les données scrapées sur le site
-  let datasWeather = [];
-  const dateStart = moment(startDate, "DD/MM/YYYY HH:mm:ss");
-  const dateEnd = moment(endDate, "DD/MM/YYYY HH:mm:ss");
-  // On fixe la borne pour l'itération au jour suivant
-  const dateEndIteration = dateEnd.clone().add(1, "days");
-
-  let dateIteration = dateStart.clone();
-  while (dateIteration < dateEndIteration) {
-    datasWeather = datasWeather.concat(
-      await performScraping(idCommune, dateIteration)
-    );
-    dateIteration.add(1, "days");
-  }
-
-  // Tri des données par date
-  datasWeather.sort((a, b) => a.moment - b.moment);
-  // Initialisation de la structure qui contiendra les données filtrées entre la date/heure de début et de fin
-  let filteredDatasWeather = [];
-  // Filtrer les données sur une plage de dates
-  datasWeather.forEach(function (value) {
-    if (value["moment"] >= dateStart && value["moment"] <= dateEnd) {
-      // Ajouter la ligne de données au tableau des données filtrées
-      filteredDatasWeather.push(value);
+    } catch (error) {
+      console.error(`Impossible de parser la date : ${excelDate}`);
+      console.error(error.message);
+      process.exit(1); // Arrêt du script en cas d'erreur
     }
-  });
-
-  // Trier les données par température croissante
-  filteredDatasWeather.sort((a, b) => a.temperature - b.temperature);
-  // Initialisation d'un objet vide pour stocker la ligne de données du résultat
-  const rowData = {};
-  rowData["idCommune"] = idCommune;
-  rowData["date"] = endDate;
-  rowData["moment"] = dateEnd;
-  // TODO faire des tests sans la transformations "." en "," et avec le formattage des données lors de l'écriture du fichier
-  rowData["temperatureMin"] = filteredDatasWeather[0].temperature.replace(".", ",");
-  rowData["temperatureMax"] = filteredDatasWeather[filteredDatasWeather.length - 1].temperature.replace(".", ",");
-  rowData["temperatureMoyenne"] = getAverage(filteredDatasWeather).replace(".", ",");
-  rowData["temperatureMediane"] = findMedian(filteredDatasWeather).replace(".", ",");
-  return rowData;
-}
-
-// Récupération de l'id de la station météo d'une ville
-async function performIdStationScraping(stationName) {
-  let url = `https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${stationName}`;
-
-  try {
-    // downloading the target web page by performing an HTTP GET request in Axios
-    const axiosResponse = await axios.request({
-      method: "POST",
-      url: url,
-      headers: {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-      },
-    })
-    
-    // Vérifier si le contenu est vide
-    if (!axiosResponse.data || axiosResponse.data === '') {
-      throw new Error('La réponse est vide');
-    }
-    
-    // Si tout est bon, tu peux continuer avec le traitement des données
-    console.log('Données reçues:', axiosResponse.data);
-    // Return the Weather Station Id bu Parsing the response, format : 7156|Paris-Montsouris (75)|0|75|0|1716185221
-    return axiosResponse.data.substring(0, axiosResponse.data.indexOf("|"));
-  } catch (error) {
-    // Remonter l'erreur à la méthode appelante
-    throw error;
+  } else {
+    console.error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
+    process.exit(1); // Arrêt du script en cas d'erreur
   }
 }
 
-// Création d'un tableau avec la date/heure de début et de fin sur une ligne
-const formatData = (jsonArray) => {
-  let previousDate = "";
-  const dateArray = [];
+// Fonction pour extraire et formater l'heure
+function formatHour(heure) {
+  let formattedHour = heure.replace("h", ":").trim();
+  const hourParts = formattedHour.split(":");
 
-  jsonArray.forEach((entry) => {
-    // Initialisation d'un objet vide pour stocker les données de la ligne
-    const rowData = {};
-    // On ne veut que les intervalles sans données de températures
-    //TOREDO if ((previousDate !== "") && (entry.Min === undefined) && (entry.Max === undefined)) {
-      if ((previousDate !== "")) {
-      rowData["begin"] = previousDate;
-      rowData["end"] = entry.Date;
-      dateArray.push(rowData);
-    }
-    previousDate = entry.Date;
-  });
+  if (hourParts.length === 2) {
+    // Complète les heures et minutes à deux chiffres
+    const hours = hourParts[0].padStart(2, "0");
+    const minutes = hourParts[1].padStart(2, "0");
+    formattedHour = `${hours}:${minutes}`;
+  } else {
+    formattedHour = "00:00"; // Valeur par défaut si format incorrect
+  }
+  return formattedHour;
+}
 
-  return dateArray;
-};
+function extractWeatherDataRow(row, $) {
+  const cells = $(row).find("td");
+  return {
+    heure: $(cells[0]).text().trim(),
+    temperature: $(cells[2]).text().replace(/[^0-9.-]/g, "").trim() // Nettoyage avancé
+  };
+}
 
-// Transformation de la date d'un format number en un format object (ex : 2024-09-07T05:59:00.000Z)
-const parseExcelDate = (excelDate) => {
-  // 1. Calculer la partie entière (jours) et la partie fractionnelle (heure)
-  const days = Math.floor(excelDate);  // Partie entière, nombre de jours
-  const fractionOfDay = excelDate - days;  // Partie décimale, fraction du jour
+function cleanTemperature(temp) {
+  const parsedTemp = parseFloat(temp);
+  return isNaN(parsedTemp) ? null : parsedTemp;
+}
 
-  // 2. Créer une date de référence Excel (1er janvier 1900)
-  const excelEpoch = new Date(1900, 0, 1);
-
-  // 3. Ajouter le nombre de jours à la date de référence
-  excelEpoch.setDate(excelEpoch.getDate() + days - 2); // -1 pour ajuster le décalage Excel
-
-  // 4. Convertir la fraction de jour en heures, minutes, secondes
-  const totalSeconds = Math.round(fractionOfDay * 24 * 60 * 60);  // Fractions de jour en secondes
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  // 5. Ajouter les heures, minutes et secondes à la date
-  excelEpoch.setHours(hours);
-  excelEpoch.setMinutes(minutes);
-  excelEpoch.setSeconds(seconds);
-
-  return excelEpoch;
-};
-
-// Lecture du fichier Excel et enregistrement dans un json
-const readExcel = (inputFile, sheetName, firstRow) => {
+// Lecture d'un onglet d'un fichier Excel à partir d'une ligne indiquée
+function readExcel(inputFile, sheetName, firstRow) {
   const workbook = XLSX.readFile(inputFile);
-  // Lire la feuille passée en paramètre
   const sheet = workbook.Sheets[sheetName];
-
-  // Convertir les données de la feuille en JSON, lire à partir de la 2nde ligne les données en brut
   const data = XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
-  //TODEL console.log("Données brutes :", data);
-
-  // Traiter les dates
-  data.forEach(row => {
-    // console.log("Ligne actuelle :", row); // Afficher chaque ligne pour voir la structure
-    if (row.Date) {
-      console.log("Date avant transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date actuelle
-      // Transformer les dates si besoin
-      row.Date = parseExcelDate(row.Date);
-      console.log("Date après transformation : ", row.Date, "Type : ", typeof row.Date); // Afficher la date transformée
-    }
-  });
-
   return data;
-};
+}
 
 // Écriture du fichier Excel avec les dates et nombres formatés à partir du json des résultats
 const writeExcel = (data, outputFile) => {
   const newWorkbook = XLSX.utils.book_new();
-  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: "DD/MM/YYYY HH:mm:ss"});
+  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: DATEHOUR_FORMAT});
   // Appliquer un format numérique à toute la colonne "temperatureMin" et "temperatureMax"
   const columnTempMin = 'D'; // Colonne "temperatureMin"
   const columnTempMax = 'E'; // Colonne "temperatureMax"
@@ -277,62 +177,255 @@ const writeExcel = (data, outputFile) => {
   XLSX.writeFile(newWorkbook, outputFile);
 };
 
-// Initialisation de la structure de données qui contiendra les résulats
-let weatherDatas = [];
+// === SCRAPING DES DONNÉES MÉTÉO ===
 
-async function main() {
-  // Lecture des données sources à partir d'une feuille d'un fichier Excel donné
-  const jsonResult = readExcel("assets/InputData.xlsx", "Suivi Conso New", 2);
-  // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
-  const inputDatas = formatData(jsonResult);
-  // Déclaration
-  let stationId;
-  let precValueEnd;
+/**
+ * Récupère les données météo pour une commune et une date.
+ * @param {string} weatherStationId L'ID de la station météo.
+ * @param {dayjs} date La date à laquelle récupérer les données.
+ * @returns {Array} Un tableau des données météo.
+ */
+async function performObservationScraping(weatherStationId, date) {
+  if (typeof weatherStationId !== 'string' || !weatherStationId.trim()) {
+    throw new ScrapingError("Invalid 'weatherStationId'", { weatherStationId });
+  }
+  if (!dayjs.isDayjs(date) || !date.isValid()) {
+    throw new ScrapingError("Invalid 'date'", { date });
+  }
 
-  // Récupération de l'id de la station météo d'une ville donnée
+  const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${weatherStationId}&jour2=${date.date()}&mois2=${date.month()}&annee2=${date.year()}&affint=1`;
+
   try {
-    stationId = await performIdStationScraping("Bressuire");
-    console.log("stationId: " + stationId);
+    const response = await axios.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const $ = cheerio.load(response.data);
+    const table = $('table:nth-child(3)[width="100%"]');
+    if (!table.length) {
+      throw new ScrapingError("Table not found on the page", { url });
+    }
+
+    const dataWeather = [];
+    table.find("tbody tr").each((_, row) => {
+      const { heure, temperature } = extractWeatherDataRow(row, $);
+      if (heure && temperature && heure !== "Heurelocale") {
+        const formattedHour = formatHour(heure);
+        const fullDate = dayjs.utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT).tz('Europe/Paris', true);
+
+        if (fullDate.isValid()) {
+          dataWeather.push({
+            weatherStationId,
+            heure: formattedHour,
+            temperature: cleanTemperature(temperature),
+            dayjs: fullDate,
+            dayjsFormated: fullDate.format(DATEHOUR_FORMAT)
+          });
+        }
+      }
+    });
+
+    return dataWeather;
   } catch (error) {
-    // Gérer l'erreur remontée lors de la récupération de l'id de la station météo
-    console.error('Erreur performIdStationScraping :', error.message);
-    // Stopper le script
-    process.exit(1);
+    if (error instanceof ScrapingError) {
+      throw error; // Relance l'erreur personnalisée
+    }
+    throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
+  }
+}
+
+/**
+ * Récupère l'ID de station météo en utilisant le nom de la station.
+ * @param {string} weatherStationName Le nom de la station météo à rechercher.
+ * @returns {string} L'ID de la station météo.
+ */
+async function performIdStationScraping(weatherStationName) {
+  if (typeof weatherStationName !== 'string' || !weatherStationName.trim()) {
+    throw new ScrapingError("Invalid 'weatherStationName'", { weatherStationName });
+  }
+
+  try {
+    // Encode le nom de la station pour l'inclure correctement dans l'URL
+    const encodedStationName = encodeURIComponent(weatherStationName);
+    const url = `${BASE_URL}${encodedStationName}`;
+
+    // Effectue la requête POST pour récupérer l'ID de la station
+    const response = await axios.post(url, {}, {
+      headers: { "User-Agent": USER_AGENT } // Simule un navigateur
+    });
+
+    // Vérifie si la réponse contient bien des données
+    if (!response.data || typeof response.data !== 'string') {
+      throw new ScrapingError("Réponse invalide reçue pour la station", { weatherStationName });
+    }
+
+    // Sépare la réponse par '|' et récupère l'ID de la station
+    const idStation = response.data.split("|")[0].trim();
+
+    // Si l'ID est invalide ou vide, renvoie une erreur
+    if (!idStation) {
+      throw new ScrapingError("ID de la station non trouvé dans la réponse", { weatherStationName });
+    }
+
+    // Si l'ID est n'est pas un nombre
+    if (!(!isNaN(Number(idStation)) && Number(idStation).toString() === idStation)) {
+      throw new ScrapingError("ID de la station n'est pas un nombre dans la réponse", { weatherStationName });
+    }
+
+    return idStation;
+  } catch (error) {
+    if (error instanceof ScrapingError) {
+      throw error; // Relance l'erreur personnalisée
+    }
+    throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
+  }
+}
+
+// Récupération des données météo entre deux dates
+async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate) {
+  // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
+  let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
+  let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
+  // Init de la date de début d'itération
+  let dateIteration = dayjsStartDate.clone();
+  // Init de la date de fin d'itération
+  let dateEndIteration;
+  // WARNING : les itérations se font sur des dates heures et pas des dates d'où la nécessité d'ajuster la date de fin d'itération
+  // Si date de début et date de fin sont égale ou si l'heure de fin est strictement supérieure à l'heure de début sans tenir compte de la date
+  // Alors la date de fin d'itération est égale à la date de fin
+  // Sinon la date de fin d'itération est égale à la date de fin + 1 jour
+  if ((dayjsStartDate.format(DATE_FORMAT) === dayjsEndDate.format(DATE_FORMAT)) || (dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))) {
+    dateEndIteration = dayjsEndDate.clone();
+  } else {
+    dateEndIteration = dayjsEndDate.clone().add(1, "day");
   }
   
-  // Pour chacune des lignes, récuparation des infos
-  for (const currentValue of inputDatas) {
-    // La date/heure de début et de fin doivent être différente
-    if (!((currentValue.end - currentValue.begin) === 0)) {
+  const datasWeather = [];
+  // Scraping de données pour la station sur la plage de dates
+  while (dateIteration.isBefore(dateEndIteration)) {
+    const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
+    datasWeather.push(...dayWeather);
+    dateIteration = dateIteration.add(1, "day");
+  }
+
+  // Filtrer les données pour n'avoir que celles sur la plage de dates en tenant compte des heures
+  const filteredDatas = datasWeather.filter(
+    (data) =>
+      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
+  );
+
+  // Tableau des données de températures uniquement pour les calculs
+  const temperatures = filteredDatas.map((data) => Number(data.temperature));
+  return {
+    weatherStationId,
+    startDate: dayjsStartDate.toDate(),
+    endDate: dayjsEndDate.toDate(),
+    minTemperature: parseFloat(Math.min(...temperatures).toFixed(2)),
+    maxTemperature: parseFloat(Math.max(...temperatures).toFixed(2)),
+    averageTemperature: parseFloat(getAverage(...temperatures)),
+    medianTemperature: parseFloat(findMedian(...temperatures)),
+  };
+}
+
+// Création d'un tableau qui contient les plages de date (début / fin) souhaitée
+const formatData = (jsonArray) => {
+  let previousDate = 0;
+  const dateArray = [];
+
+  jsonArray.forEach((entry) => {
+    // Vérification que la date est valide
+    if (!entry.Date) {
+      console.error("Date invalide ou manquante dans l'entrée.");
+      process.exit(1); // Arrêt du script en cas d'erreur
+    }
+    // Vérification que la date suivante est supérieure à la date précédente
+    if (entry.Date < previousDate) {
+      console.error(`La valeur de la date en cours ${JSDateToString(entry.Date)} est inférieure à la date précédente ${JSDateToString(previousDate)}.`);
+      process.exit(1); // Arrêt du script en cas d'erreur
+    }
+
+    // Initialisation d'un objet pour stocker les données de la ligne
+    const rowData = {};
+
+    // Si on a une date précédente et que l'entrée a des températures définies
+    if (previousDate !== 0 && entry.Min === undefined && entry.Max === undefined) {
+      rowData["begin"] = previousDate;
+      rowData["end"] = entry.Date;
+      dateArray.push(rowData);
+    }
+
+    // Mettre à jour la précédente date seulement si les conditions sont remplies
+    previousDate = entry.Date;
+  });
+
+  return dateArray;
+};
+
+// === SCRIPT PRINCIPAL ===
+
+(async () => {
+  const excelFile = "assets/InputData.xlsx";
+  const sheetName = "Suivi Conso New";
+  const firstRow = 2;
+  const weatherStationName = "Bressuire";
+
+  const start = performance.now();
+
+  // Lecture du fichier Excel
+  const jsonExcelData = readExcel(excelFile, sheetName, firstRow);
+
+  // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
+  const inputData = formatData(jsonExcelData);
+
+  // Récupération de l'id de la station météo souhaitée
+  const weatherStationId = await performIdStationScraping(weatherStationName);
+
+  // Initialisation de la structure de données qui contiendra les résulats
+  let weatherData = [];
+  let previousEndDate = 0; 
+
+/*   //TODO A TESTER
+  // Récupérer plusieurs données météo en parallèle (pour chaque intervalle de dates)
+  const weatherDataPromises = inputData.map(entry => {    
+    if (!((entry.end - entry.begin) === 0)) {
+      previousEndDate = entry.end;
+      return getWeatherDataBetween2Dates(weatherStationId, entry.begin, entry.end);
+    } else {
+      // 
+      if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
+        previousEndDate = entry.end;
+        return weatherData[weatherData.length - 1];
+      } else {
+        throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
+      }
+    }
+  });
+
+  weatherData = await Promise.all(weatherDataPromises); */
+
+  for (const entry of inputData) {    
+    if (!((entry.end - entry.begin) === 0)) {
       // Push du résultat entre deux dates/heures dans le tableau
-      weatherDatas.push(
+      weatherData.push(
         // Récupération des températures entre deux dates/heures
         await getWeatherDataBetween2Dates(
-          stationId,
-          currentValue.begin,
-          currentValue.end
+          weatherStationId,
+          entry.begin,
+          entry.end
         )
       );
-      precValueEnd = currentValue.end;
+      previousEndDate = entry.end;
     } else {
-      if ((precValueEnd - currentValue.begin) === 0) {
-        weatherDatas.push(weatherDatas[weatherDatas.length - 1]);
+      // 
+      if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
+        weatherData.push(weatherData[weatherData.length - 1]);
       } else {
-        console.log("######### ALERTE : " + precValueEnd + "/" + currentValue.begin + "/" + currentValue.end + " #########");
+        throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
       }
     }
   }
 
-  // Tri des données par date
-  // TODEL moment ? weatherDatas.sort((a, b) => a.moment - b.moment);
-  // TODO ? weatherDatas.sort((a, b) => a.date - b.date);
-  return weatherDatas;
-};
+  // Sauvegarde des résultats
+  writeExcel(weatherData, "assets/OutputData.xlsx");
 
-// Save result in Excel file
-main()
-  .then((result) => {
-    // Sauvegarde des résultats
-    writeExcel(result, "assets/OutputData.xlsx");
-  })
-  .catch((err) => console.error(err));
+  const end = performance.now();
+  console.log(`Temps d'exécution : ${(end - start).toFixed(2)} ms`);
+
+})().catch((err) => console.error(err));
