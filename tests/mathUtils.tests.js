@@ -28,8 +28,12 @@ describe('mathUtils.js', () => {
       expect(getAverage(-1, -2, -3, -4, -5)).toBe("-3.00");
     });
   
-    it('devrait gérer les floats correctement', () => {
+    it('devrait gérer les nombres flottants correctement', () => {
       expect(getAverage(1.5, 2.5, 3.5)).toBe("2.50");
+    });
+
+    it('devrait gérer un grand nombre d\'éléments', () => {
+      expect(getAverage(...Array(1000).fill(1))).toBe("1.00");
     });
   });
 
@@ -66,6 +70,11 @@ describe('mathUtils.js', () => {
 
     it('devrait gérer les nombres flottants dans la médiane', () => {
       expect(findMedian(1.5, 2.5, 3.5)).toBe("2.50");
+    });
+
+    it('devrait gérer un grand nombre d\'éléments', () => {
+      const largeArray = Array(1000).fill(5);
+      expect(findMedian(...largeArray)).toBe("5.00");
     });
   });
 });
