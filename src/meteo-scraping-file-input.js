@@ -247,15 +247,11 @@ async function performObservationScraping(weatherStationId, date) {
 
   const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${weatherStationId}&jour2=${date.date()}&mois2=${date.month()}&annee2=${date.year()}&affint=1`;
 
-  //TODEL console.log(`url: ${url}`);
-
   try {
     const response = await axios.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
     if (response.status !== 200) {
       throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
     }
-
-    //TODEL console.log(response.data);
 
     const $ = cheerio.load(response.data);
     const table = $('table:nth-child(3)[width="100%"]');
@@ -335,58 +331,46 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
   let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
   let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
+  // Init de la date de début d'itération
   let dateIteration = dayjsStartDate.clone();
+  // Init de la date de fin d'itération
   let dateEndIteration;
-
+  // WARNING : les itérations se font sur des dates heures et pas des dates d'où la nécessité d'ajuster la date de fin d'itération
+  // Si date de début et date de fin sont égale ou si l'heure de fin est strictement supérieure à l'heure de début sans tenir compte de la date
+  // Alors la date de fin d'itération est égale à la date de fin
+  // Sinon la date de fin d'itération est égale à la date de fin + 1 jour
   if ((dayjsStartDate.format(DATE_FORMAT) === dayjsEndDate.format(DATE_FORMAT)) || (dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))) {
     dateEndIteration = dayjsEndDate.clone();
   } else {
     dateEndIteration = dayjsEndDate.clone().add(1, "day");
   }
-
-  //TODEL console.log(`weatherStationId : ${weatherStationId} / startDate : ${startDate} / endDate : ${endDate}`);
+  
   const datasWeather = [];
+  // Scraping de données pour la station sur la plage de dates
   while (dateIteration.isBefore(dateEndIteration)) {
-    console.log(`Scraping data for date: ${dateIteration.format(DATEHOUR_FORMAT)}`);
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
     datasWeather.push(...dayWeather);
     dateIteration = dateIteration.add(1, "day");
   }
 
-  //TODEL console.log("Data Weather Count:", datasWeather.length);
-
+  // Filtrer les données pour n'avoir que celles sur la plage de dates en tenant compte des heures
   const filteredDatas = datasWeather.filter(
-    (data) => ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
+    (data) =>
+      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
   );
 
-  //TODEL console.log("Filtered Data Count:", filteredDatas.length);
-
+  // Tableau des données de températures uniquement pour les calculs
   const temperatures = filteredDatas.map((data) => Number(data.temperature));
-  
-  //TODEL console.log("Temperatures Array:", temperatures);
-
-  const minTemperature = temperatures.length ? parseFloat(Math.min(...temperatures).toFixed(2)) : null;
-  const maxTemperature = temperatures.length ? parseFloat(Math.max(...temperatures).toFixed(2)) : null;
-  const averageTemperature = temperatures.length ? parseFloat(getAverage(...temperatures)) : null;
-  const medianTemperature = temperatures.length ? parseFloat(findMedian(...temperatures)) : null;
-
-  // console.log("Min Temperature:", minTemperature);
-  // console.log("Max Temperature:", maxTemperature);
-  // console.log("Average Temperature:", averageTemperature);
-  // console.log("Median Temperature:", medianTemperature);
-
   return {
     weatherStationId,
     startDate: dayjsStartDate.toDate(),
     endDate: dayjsEndDate.toDate(),
-    minTemperature,
-    maxTemperature,
-    averageTemperature,
-    medianTemperature,
+    minTemperature: parseFloat(Math.min(...temperatures).toFixed(2)),
+    maxTemperature: parseFloat(Math.max(...temperatures).toFixed(2)),
+    averageTemperature: parseFloat(getAverage(...temperatures)),
+    medianTemperature: parseFloat(findMedian(...temperatures)),
   };
 }
-
-
 
 // Création d'un tableau qui contient les plages de date (début / fin) souhaitée
 const formatData = (jsonArray) => {
