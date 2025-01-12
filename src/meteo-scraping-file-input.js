@@ -3,8 +3,6 @@
 "use strict";
 
 // === MODULES IMPORTÉS ===
-const axios = require("axios");
-const cheerio = require("cheerio");
 const { JSDateToString } = require("./utils/dateHourUtils");
 const { ScrapingError } = require("./errors/customErrors");
 const { writeExcel, readExcel } = require("./utils/excelUtils");
@@ -95,7 +93,6 @@ const formatData = (jsonArray) => {
       if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
         weatherData.push(weatherData[weatherData.length - 1]);
       } else {
-        log(`Une erreur s'est produite : ${error.message}`, "error");
         throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
       }
     }
