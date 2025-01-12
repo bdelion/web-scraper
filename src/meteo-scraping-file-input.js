@@ -253,6 +253,8 @@ async function performObservationScraping(weatherStationId, date) {
       throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
     }
 
+    //TODEL console.log(response.data);
+
     const $ = cheerio.load(response.data);
     const table = $('table:nth-child(3)[width="100%"]');
     if (!table.length) {
@@ -328,6 +330,10 @@ async function performIdStationScraping(weatherStationName) {
 
 // Récupération des données météo entre deux dates
 async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate) {
+  //TODEL console.log(`weatherStationId : ${weatherStationId}`);
+  //TODEL console.log(`startDate : ${startDate}`);
+  //TODEL console.log(`endDate : ${endDate}`);
+
   // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
   let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
   let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
