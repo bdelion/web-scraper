@@ -1,5 +1,5 @@
 // script.test.js
-const { getAverage, findMedian, excelDateToDayjs, formatHour, cleanTemperature, ScrapingError, performIdStationScraping, performObservationScraping, JSDateToString, writeExcel, formatData} = require('../src/meteo-scraping-file-input.js'); // Adjust the path to your script
+const { getAverage, findMedian, excelDateToDayjs, formatHour, cleanTemperature, ScrapingError, performIdStationScraping, performObservationScraping, JSDateToString, writeExcel, formatData, getWeatherDataBetween2Dates} = require('../src/meteo-scraping-file-input.js'); // Adjust the path to your script
 const dayjs = require('dayjs');
 const axios = require('axios');
 const fs = require('fs');
@@ -505,4 +505,108 @@ describe('Tests unitaires pour la fonction formatData', () => {
     ]);
   });
 
+});
+
+// Tests pour getWeatherDataBetween2Dates
+describe('Tests unitaires pour getWeatherDataBetween2Dates', () => {
+  // Données simulées pour les tests
+  const mockWeatherData = [
+    { dayjs: dayjs('2025-01-01T10:00:00'), temperature: '10' },
+    { dayjs: dayjs('2025-01-01T12:00:00'), temperature: '12' },
+    { dayjs: dayjs('2025-01-02T10:00:00'), temperature: '9' },
+    { dayjs: dayjs('2025-01-02T12:00:00'), temperature: '11' },
+  ];
+
+  beforeEach(() => {
+    // Réinitialisation des mocks avant chaque test
+    performObservationScraping.mockReset();
+    excelDateToDayjs.mockReset();
+  });
+
+  // Test 1 : Vérifie la conversion des dates Excel
+  test('devrait convertir correctement les dates Excel en Dayjs avec le fuseau horaire de Paris', async () => {
+    const excelStartDate = 44238;  // Date Excel
+    const excelEndDate = 44239;    // Date Excel
+    const startDate = '2025-01-01T00:00:00'; // Format ISO
+    const endDate = '2025-01-02T00:00:00';  // Format ISO
+
+    // Mock de la fonction excelDateToDayjs
+    excelDateToDayjs.mockReturnValueOnce(dayjs('2025-01-01T00:00:00').tz('Europe/Paris', true));
+    excelDateToDayjs.mockReturnValueOnce(dayjs('2025-01-02T00:00:00').tz('Europe/Paris', true));
+
+    // Appel de la fonction
+    await getWeatherDataBetween2Dates(1, excelStartDate, excelEndDate);
+
+    // Vérification que excelDateToDayjs a bien été appelé avec les bons arguments
+    expect(excelDateToDayjs).toHaveBeenCalledWith(excelStartDate, 'Europe/Paris');
+    expect(excelDateToDayjs).toHaveBeenCalledWith(excelEndDate, 'Europe/Paris');
+  });
+
+  // Test 2 : Vérifie que la fonction appelle performObservationScraping pour chaque jour
+  test('devrait appeler performObservationScraping pour chaque jour entre les dates', async () => {
+    const startDate = 44238; // Date Excel
+    const endDate = 44239;   // Date Excel
+
+    // Mock des fonctions de scraping
+    performObservationScraping.mockResolvedValueOnce(mockWeatherData); // Pour le premier jour
+    performObservationScraping.mockResolvedValueOnce(mockWeatherData); // Pour le deuxième jour
+
+    await getWeatherDataBetween2Dates(1, startDate, endDate);
+
+    // Vérification que performObservationScraping a été appelé pour chaque jour
+    expect(performObservationScraping).toHaveBeenCalledTimes(2);
+    expect(performObservationScraping).toHaveBeenCalledWith(1, expect.any(dayjs)); // Date itérée
+  });
+
+  // Test 3 : Vérifie les températures min, max, moyenne et médiane
+  test('devrait calculer correctement les températures min, max, moyenne et médiane', async () => {
+    const startDate = 44238; // Date Excel
+    const endDate = 44239;   // Date Excel
+
+    // Mock des fonctions de scraping
+    performObservationScraping.mockResolvedValueOnce(mockWeatherData); // Premier jour
+    performObservationScraping.mockResolvedValueOnce(mockWeatherData); // Deuxième jour
+
+    const result = await getWeatherDataBetween2Dates(1, startDate, endDate);
+
+    // Vérification des températures
+    expect(result.minTemperature).toBe(9.00);
+    expect(result.maxTemperature).toBe(12.00);
+    expect(result.averageTemperature).toBeCloseTo(10.5, 2); // Moyenne calculée
+    expect(result.medianTemperature).toBe(10.50); // Médiane calculée
+  });
+
+  // Test 4 : Vérifie la gestion des dates égales ou proches
+  test('devrait gérer correctement les dates égales ou proches', async () => {
+    const startDate = 44238; // Date Excel
+    const endDate = 44238;   // Même date
+
+    // Mock des fonctions de scraping
+    performObservationScraping.mockResolvedValueOnce(mockWeatherData);
+
+    const result = await getWeatherDataBetween2Dates(1, startDate, endDate);
+
+    // Vérification que la fonction a bien scrappé les données pour la date précise
+    expect(result.weatherStationId).toBe(1);
+    expect(result.startDate).toEqual(expect.any(Date));
+    expect(result.endDate).toEqual(expect.any(Date));
+  });
+
+  // Test 5 : Vérifie le cas où aucune donnée n'est récupérée
+  test('devrait gérer correctement le cas où aucune donnée n\'est récupérée', async () => {
+    const startDate = 44238; // Date Excel
+    const endDate = 44239;   // Date Excel
+
+    // Mock des fonctions de scraping (aucune donnée retournée)
+    performObservationScraping.mockResolvedValueOnce([]); // Pas de données pour le premier jour
+    performObservationScraping.mockResolvedValueOnce([]); // Pas de données pour le deuxième jour
+
+    const result = await getWeatherDataBetween2Dates(1, startDate, endDate);
+
+    // Vérification des valeurs retournées quand il n'y a aucune donnée
+    expect(result.minTemperature).toBeNaN();
+    expect(result.maxTemperature).toBeNaN();
+    expect(result.averageTemperature).toBeNaN();
+    expect(result.medianTemperature).toBeNaN();
+  });
 });

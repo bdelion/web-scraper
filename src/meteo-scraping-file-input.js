@@ -490,5 +490,6 @@ module.exports = {
   performObservationScraping,
   JSDateToString,
   writeExcel,
-  formatData
+  formatData,
+  getWeatherDataBetween2Dates
 };
