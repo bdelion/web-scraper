@@ -1,5 +1,5 @@
 // script.test.js
-const { getAverage, findMedian, excelDateToDayjs, formatHour, cleanTemperature, ScrapingError, performIdStationScraping, performObservationScraping, JSDateToString, writeExcel} = require('../src/meteo-scraping-file-input.js'); // Adjust the path to your script
+const { getAverage, findMedian, excelDateToDayjs, formatHour, cleanTemperature, ScrapingError, performIdStationScraping, performObservationScraping, JSDateToString, writeExcel, formatData} = require('../src/meteo-scraping-file-input.js'); // Adjust the path to your script
 const dayjs = require('dayjs');
 const axios = require('axios');
 const fs = require('fs');
@@ -406,4 +406,103 @@ describe('writeExcel', () => {
     expect(sheet['G4'].v).toBe(4.6);
     expect(sheet['G4'].w).toBe('4.60'); // Valeur formatée
   });
+});
+
+// Tests pour formatData
+describe('Tests unitaires pour la fonction formatData', () => {
+  
+  // Test 1 : Vérifie que la fonction lève une erreur si l'entrée n'est pas un tableau
+  test('devrait lever une erreur si l\'entrée n\'est pas un tableau', () => {
+    const input = { Date: 1, Min: 10, Max: 20 };
+    expect(() => formatData(input)).toThrowError(
+      new ScrapingError("L'entrée doit être un tableau.", { jsonArray: input })
+    );
+  });
+
+  // Test 2 : Vérifie que la fonction lève une erreur si une entrée manque la propriété "Date"
+  test('devrait lever une erreur si une entrée n\'a pas de propriété "Date"', () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Min: 15, Max: 25 }, // Manque la propriété "Date"
+      { Date: 10, Min: 20, Max: 30 }
+    ];
+
+    expect(() => formatData(input)).toThrowError(
+      new ScrapingError('Date invalide ou manquante dans l\'entrée à l\'index 1.', { entry: input[1], index: 1 })
+    );
+  });
+
+  // Test 3 : Vérifie que la fonction lève une erreur si une date est inférieure à la précédente
+  test('devrait lever une erreur si une date est inférieure à la précédente', () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: 15, Max: 25 },
+      { Date: 3, Min: 20, Max: 30 } // Date inférieure à 5
+    ];
+
+    let dateBegin = JSDateToString(5);
+    let dateEnd = JSDateToString(3);
+
+    try {
+      formatData(input);
+    } catch (error) {
+      // Vérification que l'erreur est de type ScrapingError
+      expect(error).toBeInstanceOf(ScrapingError);
+
+      // Vérification du message d'erreur
+      expect(error.message).toMatch(
+        `La valeur de la date en cours (${dateEnd}) à l'index 2 est inférieure à la date précédente (${dateBegin}).`
+      );
+
+      // Vérification des détails
+      expect(error.details).toEqual({
+        entry: input[2],
+        previousDate: 5,
+        index: 2
+      });
+    }
+  });
+
+  // Test 4 : Vérifie que les plages de dates sont correctement générées quand Min et Max sont indéfinis
+  test('devrait créer des plages de dates lorsque Min et Max sont indéfinis', () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: undefined, Max: undefined },
+      { Date: 10, Min: undefined, Max: undefined }
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([
+      { begin: 1, end: 5 },
+      { begin: 5, end: 10 }
+    ]);
+  });
+
+  // Test 5 : Vérifie que le tableau retourné est vide si Min et Max sont toujours définis
+  test('ne doit pas créer de plages si Min et Max sont définis pour chaque entrée', () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: 15, Max: 25 },
+      { Date: 10, Min: 20, Max: 30 }
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([]); // Aucun range n'est créé si Min et Max sont définis
+  });
+
+  // Test 6 : Vérifie que la fonction fonctionne correctement lorsque les données sont valides
+  test('devrait renvoyer les bonnes plages de dates lorsque les données sont valides', () => {
+    const input = [
+      { Date: 1, Min: undefined, Max: undefined },
+      { Date: 5, Min: undefined, Max: undefined },
+      { Date: 10, Min: undefined, Max: undefined }
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([
+      { begin: 1, end: 5 },
+      { begin: 5, end: 10 }
+    ]);
+  });
+
 });

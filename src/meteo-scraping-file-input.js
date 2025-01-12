@@ -374,25 +374,31 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
 
 // Création d'un tableau qui contient les plages de date (début / fin) souhaitée
 const formatData = (jsonArray) => {
+  if (!Array.isArray(jsonArray)) {
+    throw new ScrapingError("L'entrée doit être un tableau.", { jsonArray });
+  }
+
   let previousDate = 0;
   const dateArray = [];
 
-  jsonArray.forEach((entry) => {
-    // Vérification que la date est valide
+  jsonArray.forEach((entry, index) => {
+    // Vérification que l'entrée a une propriété Date
     if (!entry.Date) {
-      console.error("Date invalide ou manquante dans l'entrée.");
-      process.exit(1); // Arrêt du script en cas d'erreur
+      throw new ScrapingError(`Date invalide ou manquante dans l'entrée à l'index ${index}.`, { entry, index });
     }
+
     // Vérification que la date suivante est supérieure à la date précédente
     if (entry.Date < previousDate) {
-      console.error(`La valeur de la date en cours ${JSDateToString(entry.Date)} est inférieure à la date précédente ${JSDateToString(previousDate)}.`);
-      process.exit(1); // Arrêt du script en cas d'erreur
+      throw new ScrapingError(
+        `La valeur de la date en cours (${JSDateToString(entry.Date)}) à l'index ${index} est inférieure à la date précédente (${JSDateToString(previousDate)}).`,
+        { entry, previousDate, index }
+      );
     }
 
     // Initialisation d'un objet pour stocker les données de la ligne
     const rowData = {};
 
-    // Si on a une date précédente et que l'entrée a des températures définies
+    // Si on a une date précédente et que l'entrée a des températures non définies
     if (previousDate !== 0 && entry.Min === undefined && entry.Max === undefined) {
       rowData["begin"] = previousDate;
       rowData["end"] = entry.Date;
@@ -483,5 +489,6 @@ module.exports = {
   performIdStationScraping,
   performObservationScraping,
   JSDateToString,
-  writeExcel
+  writeExcel,
+  formatData
 };
