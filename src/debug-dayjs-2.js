@@ -49,8 +49,20 @@ function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
   return finalDate;
 }
 
-let excelValue = 45505.33472222222; // Valeur Excel
+let excelValue = 43831; // Valeur Excel
 let frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
+console.log(`01/08/2024 08:02 -> ${frenchDate}`);
+console.log(`01/08/2024 08:02 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
+
+excelValue = 43832; // Valeur Excel
+frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
+console.log(`01/08/2024 08:02 -> ${frenchDate}`);
+console.log(`01/08/2024 08:02 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
+
+process.exit(1);
+
+excelValue = 45505.33472222222; // Valeur Excel
+frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
 console.log(`01/08/2024 08:02 -> ${frenchDate}`);
 console.log(`01/08/2024 08:02 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
 
@@ -89,7 +101,7 @@ frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
 console.log(`01/01/1911 07:00:00 -> ${frenchDate}`);
 console.log(`01/01/1911 07:00:00 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
 
-****************** ENTRE CES 2 DATES il y a un truc **************************************************
+// ****************** ENTRE CES 2 DATES il y a un truc **************************************************
 
 excelValue = 4383.999988425926; // Valeur Excel
 frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
