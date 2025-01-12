@@ -5,60 +5,12 @@
 // === MODULES IMPORTÉS ===
 const axios = require("axios");
 const cheerio = require("cheerio");
-const { getAverage, findMedian } = require("./utils/mathUtils");
-const { excelDateToDayjs, formatHour, JSDateToString } = require("./utils/dateHourUtils");
+const { JSDateToString } = require("./utils/dateHourUtils");
 const { ScrapingError } = require("./errors/customErrors");
 const { writeExcel, readExcel } = require("./utils/excelUtils");
-const { dayjs, DATE_FORMAT, HOUR_FORMAT, DATEHOUR_FORMAT } = require("./config/dayjsConfig");
-const { performIdStationScraping, performObservationScraping } = require("./scrapers/weatherScraper");
-
-// === SCRAPING DES DONNÉES MÉTÉO ===
-
-// Récupération des données météo entre deux dates
-async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate) {
-  // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
-  let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
-  let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
-  // Init de la date de début d'itération
-  let dateIteration = dayjsStartDate.clone();
-  // Init de la date de fin d'itération
-  let dateEndIteration;
-  // WARNING : les itérations se font sur des dates heures et pas des dates d'où la nécessité d'ajuster la date de fin d'itération
-  // Si date de début et date de fin sont égale ou si l'heure de fin est strictement supérieure à l'heure de début sans tenir compte de la date
-  // Alors la date de fin d'itération est égale à la date de fin
-  // Sinon la date de fin d'itération est égale à la date de fin + 1 jour
-  if ((dayjsStartDate.format(DATE_FORMAT) === dayjsEndDate.format(DATE_FORMAT)) || (dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))) {
-    dateEndIteration = dayjsEndDate.clone();
-  } else {
-    dateEndIteration = dayjsEndDate.clone().add(1, "day");
-  }
-  
-  const datasWeather = [];
-  // Scraping de données pour la station sur la plage de dates
-  while (dateIteration.isBefore(dateEndIteration)) {
-    const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
-    datasWeather.push(...dayWeather);
-    dateIteration = dateIteration.add(1, "day");
-  }
-
-  // Filtrer les données pour n'avoir que celles sur la plage de dates en tenant compte des heures
-  const filteredDatas = datasWeather.filter(
-    (data) =>
-      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
-  );
-
-  // Tableau des données de températures uniquement pour les calculs
-  const temperatures = filteredDatas.map((data) => Number(data.temperature));
-  return {
-    weatherStationId,
-    startDate: dayjsStartDate.toDate(),
-    endDate: dayjsEndDate.toDate(),
-    minTemperature: parseFloat(Math.min(...temperatures).toFixed(2)),
-    maxTemperature: parseFloat(Math.max(...temperatures).toFixed(2)),
-    averageTemperature: parseFloat(getAverage(...temperatures)),
-    medianTemperature: parseFloat(findMedian(...temperatures)),
-  };
-}
+const { DATEHOUR_FORMAT } = require("./config/dayjsConfig");
+const { performIdStationScraping, getWeatherDataBetween2Dates } = require("./scrapers/weatherScraper");
+const { log } = require("./utils/logUtils");
 
 // Création d'un tableau qui contient les plages de date (début / fin) souhaitée
 const formatData = (jsonArray) => {
@@ -103,46 +55,33 @@ const formatData = (jsonArray) => {
 // === SCRIPT PRINCIPAL ===
 
 (async () => {
+  log("Démarrage du script", "info");
+
   const excelFile = "assets/InputData.xlsx";
   const sheetName = "Suivi Conso New";
   const firstRow = 2;
   const weatherStationName = "Bressuire";
 
   // Lecture du fichier Excel
+  log(`Lecture du fichier Excel : ${excelFile}`, "info");
   const jsonExcelData = readExcel(excelFile, sheetName, firstRow);
 
   // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
+  log(`Formatage des données issues du fichier`, "info");
   const inputData = formatData(jsonExcelData);
 
   // Récupération de l'id de la station météo souhaitée
+  log(`Récupération de l'id de la station météo de : ${weatherStationName}`, "info");
   const weatherStationId = await performIdStationScraping(weatherStationName);
 
   // Initialisation de la structure de données qui contiendra les résulats
   let weatherData = [];
-  let previousEndDate = 0; 
-
-/*   //TODO A TESTER
-  // Récupérer plusieurs données météo en parallèle (pour chaque intervalle de dates)
-  const weatherDataPromises = inputData.map(entry => {    
-    if (!((entry.end - entry.begin) === 0)) {
-      previousEndDate = entry.end;
-      return getWeatherDataBetween2Dates(weatherStationId, entry.begin, entry.end);
-    } else {
-      // 
-      if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
-        previousEndDate = entry.end;
-        return weatherData[weatherData.length - 1];
-      } else {
-        throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
-      }
-    }
-  });
-
-  weatherData = await Promise.all(weatherDataPromises); */
+  let previousEndDate = 0;
 
   for (const entry of inputData) {    
     if (!((entry.end - entry.begin) === 0)) {
       // Push du résultat entre deux dates/heures dans le tableau
+      log(`Récupération des données météo de la station entre le ${JSDateToString(entry.begin)} et le ${JSDateToString(entry.end)}`, "warn");
       weatherData.push(
         // Récupération des températures entre deux dates/heures
         await getWeatherDataBetween2Dates(
@@ -153,30 +92,18 @@ const formatData = (jsonArray) => {
       );
       previousEndDate = entry.end;
     } else {
-      // 
       if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
         weatherData.push(weatherData[weatherData.length - 1]);
       } else {
+        log(`Une erreur s'est produite : ${error.message}`, "error");
         throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
       }
     }
   }
 
   // Sauvegarde des résultats
+  log(`Sauvegarde du résultat dans le fichier Excel`, "info");
   writeExcel(weatherData, "assets/OutputData.xlsx");
-})().catch((err) => console.error(err));
 
-// Exportation des fonctions
-module.exports = {
-  getAverage,
-  findMedian,
-  excelDateToDayjs,
-  formatHour,
-  cleanTemperature,
-  ScrapingError,
-  performIdStationScraping,
-  performObservationScraping,
-  JSDateToString,
-  writeExcel,
-  formatData
-};
+  log("Fin du script", "info");
+})().catch((err) => console.error(err));
