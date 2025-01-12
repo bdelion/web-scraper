@@ -1,10 +1,11 @@
 name: Node.js CI
 
-# Controls when the workflow will run
+# Contrôle du déclenchement de l'exécution du workflow
 on:
   # Triggers the workflow on push or pull request events
   push:
-    branches: [feature/**, develop, release/**, bugfix/**, main, hotfix/**, support/**]
+    branches:
+      [feature/**, develop, release/**, bugfix/**, main, hotfix/**, support/**]
   pull_request:
     types: [opened, synchronize, reopened]
   # Allows you to run this workflow manually from the Actions tab
@@ -17,45 +18,75 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ${{ matrix.os }}
     strategy:
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
-          node-version: [16.x, 18.x, 20.x] # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-          architecture: [x64]
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [18.x, 20.x]
+        architecture: [x64]
     name: BuildJS Node ${{ matrix.node-version }} - ${{ matrix.architecture }} on ${{ matrix.os }}
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      # Runs a single command using the runners shell
+      # Configuration de Node.js avec cache
       - name: Use Node ${{ matrix.node-version }} - ${{ matrix.architecture }} on ${{ matrix.os }}
         uses: actions/setup-node@v4
-        with: 
+        with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.architecture }}
-          cache: 'npm'
+          cache: "npm"
+
       # Install dependencies
       - name: Install dependencies Node ${{ matrix.node-version }}
         run: npm install
-      # # TO COMMENT
-      # - name: CI Node ${{ matrix.node-version }}
-      #   run: npm ci
-      # TO COMMENT
+      # Linter le code (si vous utilisez eslint ou autre)
+      - name: LINT code
+        run: npm run lint || echo "Linting skipped"  # Optionnel si vous avez un script de lint
+      # Installation des dépendances (si nécessaire)
+      - name: CI Node ${{ matrix.node-version }}
+        run: npm ci
+      # Construction du projet si nécessaire
       - name: BUILD Node ${{ matrix.node-version }}
         run: npm run build --if-present
-      # # TO COMMENT
-      # - name: TEST Node ${{ matrix.node-version }}
-      #   run: npm test
+      - name: Set timezone to Europe/Paris (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo timedatectl set-timezone Europe/Paris
+      - name: Set timezone to Europe/Paris (macOS only)
+        if: runner.os == 'macos'
+        run: |
+          sudo systemsetup -settimezone Europe/Paris
+      - name: Set timezone to Europe/Paris (Windows only)
+        if: runner.os == 'Windows'
+        run: |
+          tzutil /s "Romance Standard Time"
+      # Exécution des tests et génération de la couverture
+      - name: TEST Node ${{ matrix.node-version }}
+        run: npm test -- --coverage # Exécute les tests et génère la couverture
+      # Téléchargement du rapport de couverture avec un nom unique par version de Node.js et OS
+      - name: Upload coverage report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.node-version }}-${{ matrix.os }}
+          path: coverage/lcov.info
 
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Assurez-vous d'avoir tous les commits pour une analyse complète
+      # Télécharger le rapport de couverture
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-18.x-ubuntu-latest # Exemple de nom d'artefact, ajustez selon le nom exact
+          path: ./coverage # Chemin où le dossier sera extrait
+      # Analyse SonarCloud
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v4
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

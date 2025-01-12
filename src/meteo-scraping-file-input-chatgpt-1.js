@@ -30,42 +30,30 @@ const USER_AGENT = "Mozilla/5.0";
 // === CLASSES ===
 
 class ScrapingError extends Error {
-  constructor(message, details) {
+  constructor(message, context = {}) {
     super(message);
-    this.details = details;
-  }
-
-  static fromResponseError(url, response) {
-    return new ScrapingError(
-      `HTTP error: Received ${response.status} (${response.statusText}) at ${url}`,
-      { response }
-    );
+    this.name = "ScrapingError";
+    this.context = context; // Contexte supplémentaire, comme l'URL ou les paramètres
   }
 }
 
 // === FONCTIONS UTILITAIRES ===
 
-// Calcule la moyenne d'un tableau de températures
-function getAverage(...numbers) {
-  if (numbers.length === 0) return "0"; // Si aucun argument, renvoyer "0"
-
-  const sum = numbers.reduce((acc, temp) => acc + temp, 0);
-  return (sum / numbers.length).toFixed(2);
+// Calcule la moyenne d'une propriété d'un tableau
+function getAverage(tableauObjets) {
+  if (!tableauObjets.length) return "0";
+  const sum = tableauObjets.reduce((acc, obj) => acc + Number(obj.temperature), 0);
+  return (sum / tableauObjets.length).toFixed(2).toString();
 }
 
-// Calcule la médiane d'un tableau de nombres
-function findMedian(...numbers) {
-  if (numbers.length === 0) return "0"; // Si aucun argument, renvoyer "0"
-  
-  // Tri des températures par ordre croissant
-  numbers.sort((a, b) => a - b);
-  
-  const middle = Math.floor(numbers.length / 2);
-
-  // Si le nombre d'éléments est pair, on retourne la moyenne des deux éléments du milieu
-  return (numbers.length % 2 === 0
-    ? ((numbers[middle - 1] + numbers[middle]) / 2)
-    : numbers[middle]
+// Calcule la médiane des températures
+function findMedian(tableauObjets) {
+  const temperatures = tableauObjets.map(obj => Number(obj.temperature));
+  temperatures.sort((a, b) => a - b);
+  const middle = Math.floor(temperatures.length / 2);
+  return (temperatures.length % 2 === 0
+    ? (temperatures[middle - 1] + temperatures[middle]) / 2
+    : temperatures[middle]
   ).toFixed(2);
 }
 
@@ -90,24 +78,25 @@ function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
 
 // Fonction pour convertir une date Excel (nombre) en chaine de caractère
 function JSDateToString(excelDate) {
-  let parsedDate
-
   // Si la valeur est un nombre (timestamp Excel), convertis-la en date
   if (typeof excelDate === "number") {
     try {
       // Conversion du nombre Excel en date Dayjs
-      parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
+      let parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
       // Vérification de la validité de la date
       if (parsedDate.isValid()) {
         return parsedDate.format(DATEHOUR_FORMAT);
       } else {
-        throw new Error(`Date invalide, skipped: ${excelDate} -> ${parsedDate}`);
+        throw new Error("Date invalide");
       }
     } catch (error) {
-      throw new Error(`Impossible de parser la date, skipped: ${excelDate} -> ${parsedDate} / ${error.message}`);
+      console.error(`Impossible de parser la date : ${excelDate}`);
+      console.error(error.message);
+      process.exit(1); // Arrêt du script en cas d'erreur
     }
   } else {
-    throw new Error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
+    console.error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
+    process.exit(1); // Arrêt du script en cas d'erreur
   }
 }
 
@@ -140,96 +129,52 @@ function cleanTemperature(temp) {
   return isNaN(parsedTemp) ? null : parsedTemp;
 }
 
-/**
- * Reads data from a specified sheet in an Excel file, starting from a specific row.
- * 
- * This function loads an Excel file, accesses the specified sheet by its name, and 
- * retrieves the data starting from the row indicated by the `firstRow` parameter. 
- * It returns the data as a JSON object.
- * 
- * @param {string} inputFile - The path to the input Excel file.
- * @param {string} sheetName - The name of the sheet to read data from.
- * @param {number} firstRow - The row number from which to start reading data (1-based index).
- * @returns {Array} - The data from the specified sheet starting from the `firstRow`, formatted as an array of JSON objects.
- */
+// Lecture d'un onglet d'un fichier Excel à partir d'une ligne indiquée
 function readExcel(inputFile, sheetName, firstRow) {
-  // Read the Excel file into a workbook object
   const workbook = XLSX.readFile(inputFile);
-
-  // Access the specified sheet by name
   const sheet = workbook.Sheets[sheetName];
-
-  // Convert the sheet data to JSON starting from the specified row, with raw data for cells
   const data = XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
-
-  // Return the extracted data
   return data;
 }
 
-/**
- * Writes an Excel file with formatted dates and numbers from the provided JSON data.
- * The function creates a new workbook, converts the JSON data into a sheet, applies specific formatting 
- * for dates and numerical values, and writes the result to an output file.
- * 
- * @param {Array} data - The JSON data to be written to the Excel sheet.
- * @param {string} outputFile - The path and name of the output file where the Excel file will be saved.
- */
+// Écriture du fichier Excel avec les dates et nombres formatés à partir du json des résultats
 const writeExcel = (data, outputFile) => {
-  // Create a new workbook
+
+  console.log(`writeExcel --> data : ${JSON.stringify(data, null, 2)}`);
+
   const newWorkbook = XLSX.utils.book_new();
-  
-  // Convert the JSON data into a sheet, ensuring date cells are formatted correctly
-  const newSheet = XLSX.utils.json_to_sheet(data, {
-    cellDates: true,
-    dateNF: DATEHOUR_FORMAT, // Date format: day/month/year hour:minute:second
-  });
-
-  // Define the columns that need to have a numerical format applied
-  const columnsToFormat = ['D', 'E', 'F', 'G']; // For columns like minTemperature, maxTemperature, etc.
-  
-  // Decode the range of the sheet to loop through the data rows
+  const newSheet = XLSX.utils.json_to_sheet(data, { cellDates: true ,  dateNF: DATEHOUR_FORMAT});
+  // Appliquer un format numérique à toute la colonne "temperatureMin" et "temperatureMax"
+  const columnTempMin = 'D'; // Colonne "temperatureMin"
+  const columnTempMax = 'E'; // Colonne "temperatureMax"
+  const columnTempAverage = 'F'; // Colonne "temperatureMoyenne"
+  const columnTempMedian = 'G'; // Colonne "temperatureMediane"
+  // Obtenir toutes les clés (adresses de cellules) de la feuille
   const range = XLSX.utils.decode_range(newSheet['!ref']);
-  
-  // Iterate over the rows in the sheet (skip the header row)
-  for (let row = range.s.r + 1; row <= range.e.r; row++) {
-    columnsToFormat.forEach((col) => {
-      const cellAddress = `${col}${row + 1}`; // Construct the cell address (e.g., D2, E3, etc.)
-      
-      // Check if the cell exists and apply the format
-      if (newSheet[cellAddress]) {
-        newSheet[cellAddress].z = '0.00'; // Apply number format with two decimal places (e.g., 0.00)
-      }
-    });
+  // Appliquer le format à chaque cellule de la colonne
+  for (let row = range.s.r + 1; row <= range.e.r; row++) { // range.s.r + 1 pour éviter l'en-tête
+    const cellAddressTempMin = `${columnTempMin}${row + 1}`; // +1 car les indices de ligne sont basés sur 0
+    const cellAddressTempMax = `${columnTempMax}${row + 1}`;
+    const cellAddressTempAverage = `${columnTempAverage}${row + 1}`;
+    const cellAddressTempMedian = `${columnTempMedian}${row + 1}`;
+    if (newSheet[cellAddressTempMin]) {
+      newSheet[cellAddressTempMin].z = '0.00'; // Format numérique avec deux décimales
+    }
+    if (newSheet[cellAddressTempMax]) {
+      newSheet[cellAddressTempMax].z = '0.00'; // Format numérique avec deux décimales
+    }
+    if (newSheet[cellAddressTempAverage]) {
+      newSheet[cellAddressTempAverage].z = '0.00'; // Format numérique avec deux décimales
+    }
+    if (newSheet[cellAddressTempMedian]) {
+      newSheet[cellAddressTempMedian].z = '0.00'; // Format numérique avec deux décimales
+    }
   }
-
-  // Append the sheet to the workbook
   XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Sheet1');
-  
-  // Write the workbook to a file with the specified output path
   XLSX.writeFile(newWorkbook, outputFile);
 };
 
 // === SCRAPING DES DONNÉES MÉTÉO ===
-
-function processWeatherRow(row, $, date, weatherStationId) {
-  const { heure, temperature } = extractWeatherDataRow(row, $);
-  if (!heure || !temperature || heure === "Heurelocale") return null;
-
-  const formattedHour = formatHour(heure);
-  const fullDate = dayjs
-    .utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT)
-    .tz("Europe/Paris", true);
-
-  if (!fullDate.isValid()) return null;
-
-  return {
-    weatherStationId,
-    heure: formattedHour,
-    temperature: cleanTemperature(temperature),
-    dayjs: fullDate,
-    dayjsFormated: fullDate.format(DATEHOUR_FORMAT),
-  };
-}
 
 /**
  * Récupère les données météo pour une commune et une date.
@@ -242,17 +187,13 @@ async function performObservationScraping(weatherStationId, date) {
     throw new ScrapingError("Invalid 'weatherStationId'", { weatherStationId });
   }
   if (!dayjs.isDayjs(date) || !date.isValid()) {
-    throw new ScrapingError(`Invalid 'date': expected a valid dayjs object but received ${typeof date}`, { date });
+    throw new ScrapingError("Invalid 'date'", { date });
   }
 
   const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${weatherStationId}&jour2=${date.date()}&mois2=${date.month()}&annee2=${date.year()}&affint=1`;
 
   try {
     const response = await axios.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (response.status !== 200) {
-      throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
-    }
-
     const $ = cheerio.load(response.data);
     const table = $('table:nth-child(3)[width="100%"]');
     if (!table.length) {
@@ -261,21 +202,29 @@ async function performObservationScraping(weatherStationId, date) {
 
     const dataWeather = [];
     table.find("tbody tr").each((_, row) => {
-      const data = processWeatherRow(row, $, date, weatherStationId);
-      if (data) dataWeather.push(data);
-    });    
+      const { heure, temperature } = extractWeatherDataRow(row, $);
+      if (heure && temperature && heure !== "Heurelocale") {
+        const formattedHour = formatHour(heure);
+        const fullDate = dayjs.utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT).tz('Europe/Paris', true);
+
+        if (fullDate.isValid()) {
+          dataWeather.push({
+            weatherStationId,
+            heure: formattedHour,
+            temperature: cleanTemperature(temperature),
+            dayjs: fullDate,
+            dayjsFormated: fullDate.format(DATEHOUR_FORMAT)
+          });
+        }
+      }
+    });
 
     return dataWeather;
   } catch (error) {
-    if (error.response) {
-      // Erreur HTTP
-      throw new ScrapingError(`HTTP error on ${url}: ${error.response.statusText} (${error.response.status})`, { url });
+    if (error instanceof ScrapingError) {
+      throw error; // Relance l'erreur personnalisée
     }
-    if (error.request) {
-      // Erreur réseau
-      throw new ScrapingError(`Network error while accessing ${url}`, { url, originalError: error });
-    }
-    throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
+    throw new ScrapingError(`Unexpected error: ${error.message}`, { originalError: error });
   }
 }
 
@@ -288,12 +237,12 @@ async function performIdStationScraping(weatherStationName) {
   if (typeof weatherStationName !== 'string' || !weatherStationName.trim()) {
     throw new ScrapingError("Invalid 'weatherStationName'", { weatherStationName });
   }
-  
-  // Encode le nom de la station pour l'inclure correctement dans l'URL
-  const encodedStationName = encodeURIComponent(weatherStationName);
-  const url = `${BASE_URL}${encodedStationName}`;
 
   try {
+    // Encode le nom de la station pour l'inclure correctement dans l'URL
+    const encodedStationName = encodeURIComponent(weatherStationName);
+    const url = `${BASE_URL}${encodedStationName}`;
+
     // Effectue la requête POST pour récupérer l'ID de la station
     const response = await axios.post(url, {}, {
       headers: { "User-Agent": USER_AGENT } // Simule un navigateur
@@ -322,7 +271,7 @@ async function performIdStationScraping(weatherStationName) {
     if (error instanceof ScrapingError) {
       throw error; // Relance l'erreur personnalisée
     }
-    throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
+    throw new ScrapingError(`Unexpected error: ${error.message}`, { originalError: error });
   }
 }
 
@@ -331,6 +280,12 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
   let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
   let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
+
+  console.log(`getWeatherDataBetween2Dates --> startDate: ${startDate}`);
+  console.log(`getWeatherDataBetween2Dates --> endDate: ${endDate}`);
+  console.log(`getWeatherDataBetween2Dates --> dayjsStartDate formatée : ${dayjsStartDate.format(DATEHOUR_FORMAT)}`);
+  console.log(`getWeatherDataBetween2Dates --> dayjsEndDate formatée : ${dayjsEndDate.format(DATEHOUR_FORMAT)}`);
+
   // Init de la date de début d'itération
   let dateIteration = dayjsStartDate.clone();
   // Init de la date de fin d'itération
@@ -346,59 +301,55 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   }
   
   const datasWeather = [];
-  // Scraping de données pour la station sur la plage de dates
+
   while (dateIteration.isBefore(dateEndIteration)) {
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
     datasWeather.push(...dayWeather);
     dateIteration = dateIteration.add(1, "day");
   }
 
-  // Filtrer les données pour n'avoir que celles sur la plage de dates en tenant compte des heures
+  //TODEL console.log(`getWeatherDataBetween2Dates --> datasWeather : ${JSON.stringify(datasWeather, null, 2)}`);
+
   const filteredDatas = datasWeather.filter(
     (data) =>
-      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
+      data.dayjs.isAfter(dayjsStartDate) && data.dayjs.isBefore(dayjsEndDate)
   );
 
-  // Tableau des données de températures uniquement pour les calculs
+  console.log(`getWeatherDataBetween2Dates --> filteredDatas : ${JSON.stringify(filteredDatas, null, 2)}`);
+
   const temperatures = filteredDatas.map((data) => Number(data.temperature));
   return {
     weatherStationId,
-    startDate: dayjsStartDate.toDate(),
-    endDate: dayjsEndDate.toDate(),
-    minTemperature: parseFloat(Math.min(...temperatures).toFixed(2)),
-    maxTemperature: parseFloat(Math.max(...temperatures).toFixed(2)),
-    averageTemperature: parseFloat(getAverage(...temperatures)),
-    medianTemperature: parseFloat(findMedian(...temperatures)),
+    startDate: dayjsStartDate.format(DATEHOUR_FORMAT),
+    endDate: dayjsEndDate.format(DATEHOUR_FORMAT),
+    minTemperature: Math.min(...temperatures).toFixed(2),
+    maxTemperature: Math.max(...temperatures).toFixed(2),
+    averageTemperature: getAverage(filteredDatas),
+    medianTemperature: findMedian(filteredDatas),
   };
 }
 
 // Création d'un tableau qui contient les plages de date (début / fin) souhaitée
 const formatData = (jsonArray) => {
-  if (!Array.isArray(jsonArray)) {
-    throw new ScrapingError("L'entrée doit être un tableau.", { jsonArray });
-  }
-
   let previousDate = 0;
   const dateArray = [];
 
-  jsonArray.forEach((entry, index) => {
-    // Vérification que l'entrée a une propriété Date
+  jsonArray.forEach((entry) => {
+    // Vérification que la date est valide
     if (!entry.Date) {
-      throw new ScrapingError(`Date invalide ou manquante dans l'entrée à l'index ${index}.`, { entry, index });
+      console.error("Date invalide ou manquante dans l'entrée.");
+      process.exit(1); // Arrêt du script en cas d'erreur
     }
-
     // Vérification que la date suivante est supérieure à la date précédente
     if (entry.Date < previousDate) {
-      throw new ScrapingError(
-        `La valeur de la date en cours (${JSDateToString(entry.Date)}) à l'index ${index} est inférieure à la date précédente (${JSDateToString(previousDate)}).`,
-        { entry, previousDate, index }
-      );
+      console.error(`La valeur de la date en cours ${JSDateToString(entry.Date)} est inférieure à la date précédente ${JSDateToString(previousDate)}.`);
+      process.exit(1); // Arrêt du script en cas d'erreur
     }
 
     // Initialisation d'un objet pour stocker les données de la ligne
     const rowData = {};
 
-    // Si on a une date précédente et que l'entrée a des températures non définies
+    // Si on a une date précédente et que l'entrée a des températures définies
     if (previousDate !== 0 && entry.Min === undefined && entry.Max === undefined) {
       rowData["begin"] = previousDate;
       rowData["end"] = entry.Date;
@@ -422,37 +373,28 @@ const formatData = (jsonArray) => {
 
   // Lecture du fichier Excel
   const jsonExcelData = readExcel(excelFile, sheetName, firstRow);
+  
+  console.log(`main -> jsonExcelData : ${JSON.stringify(jsonExcelData, null, 2)}`);
 
   // Formatage des données dans un tableau avec la date/heure de début et de fin sur chaque ligne
   const inputData = formatData(jsonExcelData);
+  
+  console.log(`main -> inputData : ${JSON.stringify(inputData, null, 2)}`);
 
   // Récupération de l'id de la station météo souhaitée
   const weatherStationId = await performIdStationScraping(weatherStationName);
+  console.log(`main -> weatherStationId : ${weatherStationId}`);
 
   // Initialisation de la structure de données qui contiendra les résulats
   let weatherData = [];
   let previousEndDate = 0; 
 
-/*   //TODO A TESTER
-  // Récupérer plusieurs données météo en parallèle (pour chaque intervalle de dates)
-  const weatherDataPromises = inputData.map(entry => {    
-    if (!((entry.end - entry.begin) === 0)) {
-      previousEndDate = entry.end;
-      return getWeatherDataBetween2Dates(weatherStationId, entry.begin, entry.end);
-    } else {
-      // 
-      if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
-        previousEndDate = entry.end;
-        return weatherData[weatherData.length - 1];
-      } else {
-        throw new ScrapingError(`There is a problem with date ranges : ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
-      }
-    }
-  });
+  for (const entry of inputData) {
+    console.log(`main --> entry.begin:`);
+    console.log(entry.begin);
+    console.log(`main --> entry.end:`);
+    console.log(entry.end);
 
-  weatherData = await Promise.all(weatherDataPromises); */
-
-  for (const entry of inputData) {    
     if (!((entry.end - entry.begin) === 0)) {
       // Push du résultat entre deux dates/heures dans le tableau
       weatherData.push(
@@ -473,22 +415,25 @@ const formatData = (jsonArray) => {
       }
     }
   }
+  
+  console.log(`main -> weatherData : ${JSON.stringify(weatherData, null, 2)}`);
+
+  // Fonction pour convertir les dates et les nombres
+  weatherData = weatherData.map(item => {
+    return {
+      ...item,
+      startDate: new Date(item.startDate), // Convertir la date en objet Date
+      endDate: new Date(item.endDate), // Convertir la date en objet Date
+      minTemperature: parseFloat(item.minTemperature), // Convertir les températures en nombres
+      maxTemperature: parseFloat(item.maxTemperature),
+      averageTemperature: parseFloat(item.averageTemperature),
+      medianTemperature: parseFloat(item.medianTemperature)
+    };
+  });
+
+  console.log(`main -> weatherData : ${JSON.stringify(weatherData, null, 2)}`);
 
   // Sauvegarde des résultats
   writeExcel(weatherData, "assets/OutputData.xlsx");
-})().catch((err) => console.error(err));
 
-// Exportation des fonctions
-module.exports = {
-  getAverage,
-  findMedian,
-  excelDateToDayjs,
-  formatHour,
-  cleanTemperature,
-  ScrapingError,
-  performIdStationScraping,
-  performObservationScraping,
-  JSDateToString,
-  writeExcel,
-  formatData
-};
+})().catch((err) => console.error(err));
