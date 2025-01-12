@@ -37,6 +37,7 @@ const puppeteer = require("puppeteer");
 
   // Get the img src from img sFlh5c pT0Scc iPVvYb inside this div
   const imgSrc = await page.evaluate(() => {
+    // eslint-disable-next-line no-undef
     return document.querySelector("#islsp img.sFlh5c.pT0Scc.iPVvYb").src;
   });
 
