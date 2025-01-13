@@ -177,46 +177,71 @@ async function performObservationScraping(weatherStationId, date) {
 /**
  * Retrieves weather data between two dates for a given station.
  * Logs progress for long-running loops.
+ * 
+ * This function fetches weather data (e.g., temperature) for each day between the provided start and end dates.
+ * The data is filtered to include only valid entries, and a summary of temperatures is returned, including:
+ * - Minimum temperature
+ * - Maximum temperature
+ * - Average temperature
+ * - Median temperature
+ * 
  * @param {string} weatherStationId - The weather station ID.
- * @param {number} startDate - The start date in Excel format.
- * @param {number} endDate - The end date in Excel format.
- * @returns {Promise<Object>} - Weather data summary including min, max, average, and median temperatures.
+ * @param {number} startDate - The start date in Excel format (serial number).
+ * @param {number} endDate - The end date in Excel format (serial number).
+ * @returns {Promise<Object>} - A weather data summary including min, max, average, and median temperatures.
+ * @throws {Error} - Throws an error if one of the provided dates is invalid.
  */
 async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate) {
+  // Convert Excel serial dates to Dayjs objects, applying the 'Europe/Paris' timezone
   const dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
   const dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
-  let dateIteration = dayjsStartDate.clone();
+
+  // Check if the dates are valid
+  if (!dayjsStartDate.isValid() || !dayjsEndDate.isValid()) {
+    throw new Error("One or both of the dates are invalid.");
+  }
+
+  let dateIteration = dayjsStartDate.clone(); // Clone the start date for iteration
   let dateEndIteration;
 
+  // If the start and end dates are on the same day or the end date is later in the day, no need to adjust the iteration end date
   if ((dayjsStartDate.format(DATE_FORMAT) === dayjsEndDate.format(DATE_FORMAT)) || (dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))) {
     dateEndIteration = dayjsEndDate.clone();
   } else {
+    // If the end date is earlier, adjust it by adding one day
     dateEndIteration = dayjsEndDate.clone().add(1, "day");
   }
 
+  // Log the start, end, and iteration end dates
   log(`Start Date: ${dayjsStartDate}`, "info");
   log(`End Date: ${dayjsEndDate}`, "info");
   log(`End Iteration Date: ${dateEndIteration}`, "info");
 
-  const weatherData = [];
+  const weatherData = []; // Array to hold the collected weather data
   while (dateIteration.isBefore(dateEndIteration)) {
     log(`Iteration Date: ${dateIteration}`, "info");
+
+    // Fetch weather data for the current day
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
-    weatherData.push(...dayWeather);
-    dateIteration = dateIteration.add(1, "day");
+    weatherData.push(...dayWeather); // Add the data to the weatherData array
+    dateIteration = dateIteration.add(1, "day"); // Move to the next day
 
     log(`Progress: Retrieved data for ${dateIteration.format(DATE_FORMAT)}`, "info");
   }
 
+  // Filter out any invalid or out-of-range weather data
   const validData = weatherData.filter(
     (data) =>
-      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
+      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && 
+       (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
   );
 
+  // Extract temperatures from the valid data
   const temperatures = validData.map((data) => Number(data.temperature));
 
   log(`Temperatures between ${dayjsStartDate} and ${dayjsEndDate}: ${temperatures}`, "info");
 
+  // Return an object with the weather summary
   return {
     weatherStationId,
     startDate: dayjsStartDate.toDate(),
