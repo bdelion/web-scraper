@@ -12,55 +12,54 @@ describe("writeExcel", () => {
   ];
 
   afterAll(() => {
-    // Supprimer le fichier de sortie après les tests
+    // Remove the output file after tests
     if (fs.existsSync(outputFile)) {
       fs.unlinkSync(outputFile);
     }
   });
 
-  it("devrait écrire les données JSON dans un fichier Excel avec le bon format", () => {
+  it("should write JSON data to an Excel file with correct formatting", () => {
     writeExcel(testData, outputFile);
 
-    // Vérifier si le fichier a été créé
+    // Verify the file was created
     expect(fs.existsSync(outputFile)).toBe(true);
 
-    // Lire le fichier Excel pour vérifier les données
+    // Read the Excel file and validate its data
     const workbook = XLSX.readFile(outputFile);
     const sheet = workbook.Sheets["Sheet1"];
     const data = XLSX.utils.sheet_to_json(sheet, { raw: true });
 
-    // Vérifier que les données sont correctes
+    // Check data integrity
     expect(data).toHaveLength(2);
     expect(data[0]).toHaveProperty("name", "John");
     expect(data[1]).toHaveProperty("score", 92.3);
 
-    // Vérifier que la colonne de scores est formatée correctement (deux décimales)
+    // Verify the score column formatting (two decimal places)
     const scoreCell = sheet["D2"];
     expect(scoreCell.v).toBe(88.5);
     expect(scoreCell.w).toBe("88.50");
   });
 
-  it("devrait gérer les erreurs si le fichier de sortie ne peut pas être créé", () => {
+  it("should handle errors if the output file cannot be created", () => {
     const invalidOutputPath = "/invalid/path/outputFile.xlsx";
     expect(() => writeExcel(testData, invalidOutputPath)).toThrowError();
   });
 
-  it("devrait ne pas écraser un fichier existant sans confirmation préalable", () => {
-    // Créer un fichier existant pour tester
+  it("should overwrite an existing file without prior confirmation", () => {
+    // Create an existing file to test overwriting
     fs.writeFileSync(outputFile, "existing content");
     writeExcel(testData, outputFile);
 
     const fileContent = fs.readFileSync(outputFile, "utf-8");
-    expect(fileContent).not.toBe("existing content"); // Vérifier que le contenu a été écrasé
+    expect(fileContent).not.toBe("existing content"); // Ensure the content was overwritten
   });
 });
 
-// Crée un fichier temporaire pour les tests
 const testFile = path.join(__dirname, "testFile.xlsx");
 
 describe("readExcel", () => {
   beforeAll(() => {
-    // Créer un fichier Excel de test avec des en-têtes corrects
+    // Create a test Excel file with appropriate headers
     const workbook = XLSX.utils.book_new();
     const sheetData = [
       { name: "John", age: 28, date: new Date(2025, 0, 12), score: 88.5 },
@@ -72,29 +71,30 @@ describe("readExcel", () => {
   });
 
   afterAll(() => {
-    // Supprimer le fichier de test après les tests
+    // Remove the test file after tests
     if (fs.existsSync(testFile)) {
       fs.unlinkSync(testFile);
     }
   });
 
-  it("devrait lire un fichier Excel et retourner des données sous forme de tableau JSON", () => {
+  it("should read an Excel file and return data as a JSON array", () => {
     const data = readExcel(testFile, "Sheet1", 0);
-    expect(data).toHaveLength(2); // Il y a 2 lignes de données
+    expect(data).toHaveLength(2); // Verify there are 2 data rows
     expect(data[0]).toHaveProperty("name", "John");
     expect(data[1]).toHaveProperty("age", 22);
     expect(data[1]).toHaveProperty("score", 92.3);
   });
 
-  it("devrait renvoyer un tableau vide si la feuille n'existe pas", () => {
+  it("should return an empty array if the sheet does not exist", () => {
     const data = readExcel(testFile, "NonExistentSheet", 0);
-    expect(data).toHaveLength(0); // Aucune donnée retournée
+    expect(data).toHaveLength(0); // No data returned
   });
 
-  it("devrait retourner une erreur si le fichier n'existe pas", () => {
+  it("should throw an error if the file does not exist", () => {
     expect(() => readExcel("nonexistentfile.xlsx", "Sheet1", 0)).toThrowError();
   });
 
+  //TODO ?
   // it("devrait commencer à lire les données à partir de la ligne spécifiée (1-based index)", () => {
   //   const data = readExcel(testFile, "Sheet1", 0); // Lire à partir de la ligne 2
   //   expect(data).toHaveLength(1); // Il n'y a qu'une seule ligne de données (la ligne 2)
@@ -106,27 +106,25 @@ describe("readExcel", () => {
   //   expect(new Date(data[0].date)).toEqual(new Date(2025, 0, 12)); // Vérifier la conversion des dates
   // });
 
-  it("devrait gérer les colonnes vides correctement", () => {
+  it("should handle empty columns correctly", () => {
     const sheetDataWithEmptyCols = [
       { name: "John", age: 28, score: 88.5 },
       { name: "Jane", age: 22, score: 92.3 },
-      { name: "", age: 0, score: 0 }, // Ligne avec des valeurs manquantes
+      { name: "", age: 0, score: 0 }, // Row with missing values
     ];
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.json_to_sheet(sheetDataWithEmptyCols);
     XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
-    const testFileWithEmptyCols = path.join(
-      __dirname,
-      "testFileWithEmptyCols.xlsx"
-    );
+    const testFileWithEmptyCols = path.join(__dirname, "testFileWithEmptyCols.xlsx");
     XLSX.writeFile(workbook, testFileWithEmptyCols);
 
     const data = readExcel(testFileWithEmptyCols, "Sheet1", 0);
-    expect(data[2]).toHaveProperty("name", ""); // La ligne vide pour 'name'
+    expect(data[2]).toHaveProperty("name", ""); // Verify empty 'name'
     fs.unlinkSync(testFileWithEmptyCols);
   });
 });
 
+//TODO ?
 // jest.mock('fs');
 // jest.mock('xlsx', () => ({ ...jest.requireActual('xlsx'), readFile: jest.fn(), }));
 // // Mock data

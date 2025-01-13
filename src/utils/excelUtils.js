@@ -1,4 +1,4 @@
-// === MODULES IMPORTÉS ===
+// === MODULES IMPORTED ===
 const XLSX = require("xlsx");
 const { DATEHOUR_FORMAT } = require("../config/dayjsConfig");
 
@@ -71,6 +71,7 @@ const writeExcel = (data, outputFile) => {
   XLSX.writeFile(newWorkbook, outputFile);
 };
 
+// Export the functions for external usage
 module.exports = {
   readExcel,
   writeExcel,
