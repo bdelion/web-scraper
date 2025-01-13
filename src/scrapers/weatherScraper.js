@@ -123,7 +123,7 @@ async function performIdStationScraping(weatherStationName) {
     } catch (error) {
       log(`Attempt ${attempt} failed for ${url}: ${error.message}`, "warn");
       if (attempt === 3 || error instanceof ScrapingError) {
-        throw error;
+        throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
       }
       await new Promise(resolve => setTimeout(resolve, 1000)); // Retry after 1 second
     }
@@ -170,12 +170,6 @@ async function performObservationScraping(weatherStationId, date) {
 
     return dataWeather;
   } catch (error) {
-    if (error.response) {
-      throw new ScrapingError(`HTTP error on ${url}: ${error.response.statusText} (${error.response.status})`, { url });
-    }
-    if (error.request) {
-      throw new ScrapingError(`Network error while accessing ${url}`, { url, originalError: error });
-    }
     throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
   }
 }
