@@ -49,6 +49,12 @@ describe('Tests des fonctions utilitaires de gestion de dates', () => {
       expect(result.isValid()).toBe(false);
     });
 
+    it('doit lever une erreur si la date Excel est invalide', () => {
+      const excelDate = "C'est pas une date";
+      const timezone = 'Europe/Paris';
+      expect(() => excelDateToDayjs(excelDate, timezone)).toThrowError(`Date Excel invalide: ${excelDate}`);
+    });
+
     it('doit correctement appliquer un fuseau horaire différent', () => {
       const excelDate = 44554;
       const timezone = 'America/New_York';
