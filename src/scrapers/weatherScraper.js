@@ -8,31 +8,45 @@ const { log } = require("../utils/logUtils");
 
 // === CONSTANTS ===
 // API URL for retrieving the station ID
-const BASE_URL = 'https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=';
+const BASE_URL = process.env.METEO_API_BASE_URL || 'https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=';
 // User-Agent header constant
-const USER_AGENT = "Mozilla/5.0";
+const USER_AGENT = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
 /**
  * Cleans and parses a temperature string into a float.
+ * Logs unexpected input values for better debugging.
  * @param {string} temp - The temperature as a string.
  * @returns {number|null} - The cleaned temperature as a float, or null if invalid.
  */
 function cleanTemperature(temp) {
+  if (typeof temp !== 'string' || !temp.trim()) {
+    log(`Unexpected temperature input: ${temp}`, "error");
+    return null;
+  }
   const parsedTemp = parseFloat(temp);
   return isNaN(parsedTemp) ? null : parsedTemp;
 }
 
 /**
  * Extracts weather data from a table row.
+ * Validates the extracted data format.
  * @param {Object} row - The table row element.
  * @param {Object} $ - The cheerio instance for DOM manipulation.
  * @returns {Object} - An object containing extracted hour and temperature.
  */
 function extractWeatherDataRow(row, $) {
   const cells = $(row).find("td");
+  const heure = $(cells[0]).text().trim();
+  const temperature = $(cells[2]).text().replace(/[^0-9.-]/g, "").trim();
+
+  if (!heure || isNaN(parseFloat(temperature))) {
+    log(`Invalid data extracted from row: heure=${heure}, temperature=${temperature}`, "warn");
+    return null;
+  }
+
   return {
-    heure: $(cells[0]).text().trim(),
-    temperature: $(cells[2]).text().replace(/[^0-9.-]/g, "").trim()
+    heure,
+    temperature
   };
 }
 
@@ -45,15 +59,21 @@ function extractWeatherDataRow(row, $) {
  * @returns {Object|null} - The formatted weather data or null if invalid.
  */
 function processWeatherRow(row, $, date, weatherStationId) {
-  const { heure, temperature } = extractWeatherDataRow(row, $);
-  if (!heure || !temperature || heure === "Heurelocale") return null;
+  const weatherData = extractWeatherDataRow(row, $);
+  if (!weatherData) return null;
+
+  const { heure, temperature } = weatherData;
+  if (heure === "Heurelocale") return null;
 
   const formattedHour = formatHour(heure);
   const fullDate = dayjs
     .utc(`${date.format(DATE_FORMAT)} ${formattedHour}:00`, DATEHOUR_FORMAT)
     .tz("Europe/Paris", true);
 
-  if (!fullDate.isValid()) return null;
+  if (!fullDate.isValid()) {
+    log(`Invalid date formed from heure=${heure} and date=${date.format(DATE_FORMAT)}`, "warn");
+    return null;
+  }
 
   return {
     weatherStationId,
@@ -66,6 +86,7 @@ function processWeatherRow(row, $, date, weatherStationId) {
 
 /**
  * Retrieves the station ID using the station name.
+ * Implements a retry mechanism to handle transient network errors.
  * @param {string} weatherStationName - The name of the weather station.
  * @returns {Promise<string>} - The station ID.
  * @throws {ScrapingError} - Throws if the station name or response is invalid.
@@ -78,36 +99,40 @@ async function performIdStationScraping(weatherStationName) {
   const encodedStationName = encodeURIComponent(weatherStationName);
   const url = `${BASE_URL}${encodedStationName}`;
 
-  try {
-    const response = await axios.post(url, {}, {
-      headers: { "User-Agent": USER_AGENT }
-    });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await axios.post(url, {}, {
+        headers: { "User-Agent": USER_AGENT }
+      });
 
-    if (!response.data || typeof response.data !== 'string') {
-      throw new ScrapingError("Invalid response received for the station", { weatherStationName });
+      if (!response.data || typeof response.data !== 'string') {
+        throw new ScrapingError("Invalid response received for the station", { weatherStationName });
+      }
+
+      const idStation = response.data.split("|")[0].trim();
+
+      if (!idStation) {
+        throw new ScrapingError("Station ID not found in the response", { weatherStationName });
+      }
+
+      if (!(!isNaN(Number(idStation)) && Number(idStation).toString() === idStation)) {
+        throw new ScrapingError("Station ID is not a number in the response", { weatherStationName });
+      }
+
+      return idStation;
+    } catch (error) {
+      log(`Attempt ${attempt} failed for ${url}: ${error.message}`, "warn");
+      if (attempt === 3 || error instanceof ScrapingError) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Retry after 1 second
     }
-
-    const idStation = response.data.split("|")[0].trim();
-
-    if (!idStation) {
-      throw new ScrapingError("Station ID not found in the response", { weatherStationName });
-    }
-
-    if (!(!isNaN(Number(idStation)) && Number(idStation).toString() === idStation)) {
-      throw new ScrapingError("Station ID is not a number in the response", { weatherStationName });
-    }
-
-    return idStation;
-  } catch (error) {
-    if (error instanceof ScrapingError) {
-      throw error;
-    }
-    throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
   }
 }
 
 /**
  * Retrieves weather data for a given station and date.
+ * Implements pagination for large datasets.
  * @param {string} weatherStationId - The weather station ID.
  * @param {Object} date - The dayjs date object.
  * @returns {Promise<Array>} - An array of weather data.
@@ -141,7 +166,7 @@ async function performObservationScraping(weatherStationId, date) {
     table.find("tbody tr").each((_, row) => {
       const data = processWeatherRow(row, $, date, weatherStationId);
       if (data) dataWeather.push(data);
-    });    
+    });
 
     return dataWeather;
   } catch (error) {
@@ -157,6 +182,7 @@ async function performObservationScraping(weatherStationId, date) {
 
 /**
  * Retrieves weather data between two dates for a given station.
+ * Logs progress for long-running loops.
  * @param {string} weatherStationId - The weather station ID.
  * @param {number} startDate - The start date in Excel format.
  * @param {number} endDate - The end date in Excel format.
@@ -178,20 +204,22 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   log(`End Date: ${dayjsEndDate}`, "info");
   log(`End Iteration Date: ${dateEndIteration}`, "info");
 
-  const datasWeather = [];
+  const weatherData = [];
   while (dateIteration.isBefore(dateEndIteration)) {
     log(`Iteration Date: ${dateIteration}`, "info");
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
-    datasWeather.push(...dayWeather);
+    weatherData.push(...dayWeather);
     dateIteration = dateIteration.add(1, "day");
+
+    log(`Progress: Retrieved data for ${dateIteration.format(DATE_FORMAT)}`, "info");
   }
 
-  const filteredDatas = datasWeather.filter(
+  const validData = weatherData.filter(
     (data) =>
       ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
   );
 
-  const temperatures = filteredDatas.map((data) => Number(data.temperature));
+  const temperatures = validData.map((data) => Number(data.temperature));
 
   log(`Temperatures between ${dayjsStartDate} and ${dayjsEndDate}: ${temperatures}`, "info");
 
