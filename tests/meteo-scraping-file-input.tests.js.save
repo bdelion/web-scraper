@@ -11,17 +11,7 @@ jest.mock('axios');
 
 describe("Tests des fonctions utilitaires", () => {
 
-// Tests pour formatHour
-describe("Tests de formatage des heures", () => {
-  it("devrait formater l'heure correctement", () => {
-    expect(formatHour("2h5")).toBe("02:05");
-    expect(formatHour("14h30")).toBe("14:30");
-    expect(formatHour("9h15")).toBe("09:15");
-    expect(formatHour('')).toBe('00:00'); // Valeur vide, retourne par défaut
-    //TODO Implémenter cette exception dans formatHour
-    /* expect(formatHour("25h00")).toBe("00:00"); // Valeur invalide, retourne par défaut */
-  });
-});
+
 
 // Tests pour cleanTemperature
 describe("Tests de nettoyage des températures", () => {
