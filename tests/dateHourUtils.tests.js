@@ -1,4 +1,4 @@
-// Importation des fonctions à tester
+// Import the functions to be tested
 const {
   excelDateToDayjs,
   JSDateToString,
@@ -6,12 +6,12 @@ const {
 } = require("../src/utils/dateHourUtils");
 const { dayjs, DATEHOUR_FORMAT } = require("../src/config/dayjsConfig");
 
-// Début des tests unitaires
-describe("Tests des fonctions utilitaires de gestion de dates", () => {
-  // Tests pour la fonction excelDateToDayjs
+// Start of unit tests
+describe("Utility functions for date management", () => {
+  // Tests for the excelDateToDayjs function
   describe("excelDateToDayjs", () => {
-    it("doit convertir une date d'été Excel valide en un objet Dayjs avec le bon fuseau horaire", () => {
-      const excelDate = 45505.33472222222; // Exemple de valeur pour une date Excel, correspond à 01/08/2024 08:02
+    it("should correctly convert a valid summer Excel date to a Dayjs object with the correct timezone", () => {
+      const excelDate = 45505.33472222222; // Corresponds to 2024-08-01 08:02
       const timezone = "Europe/Paris";
 
       const result = excelDateToDayjs(excelDate, timezone);
@@ -23,8 +23,8 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
       expect(result.format(DATEHOUR_FORMAT)).toBe("01/08/2024 08:02:00");
     });
 
-    it("doit convertir une date d'hiver Excel valide en un objet Dayjs avec le bon fuseau horaire", () => {
-      const excelDate = 45627.41736111111; // Exemple de valeur pour une date Excel, correspond à 01/12/2024 10:01
+    it("should correctly convert a valid winter Excel date to a Dayjs object with the correct timezone", () => {
+      const excelDate = 45627.41736111111; // Corresponds to 2024-12-01 10:01
       const timezone = "Europe/Paris";
 
       const result = excelDateToDayjs(excelDate, timezone);
@@ -48,8 +48,8 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
       expect(result.format(DATEHOUR_FORMAT)).toBe("30/01/1900 00:00:00");
     }); */
 
-    it("doit renvoyer une date invalide pour des valeurs avant l'époque Excel", () => {
-      const excelDate = -1; // Date avant 1900
+    it("should return an invalid date for values before the Excel epoch", () => {
+      const excelDate = -1; // Date before 1900
       const timezone = "Europe/Paris";
 
       const result = excelDateToDayjs(excelDate, timezone);
@@ -57,16 +57,17 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
       expect(result.isValid()).toBe(false);
     });
 
-    it("doit lever une erreur si la date Excel est invalide", () => {
-      const excelDate = "C'est pas une date";
+    it("should throw an error if the Excel date is invalid", () => {
+      const excelDate = "InvalidDate";
       const timezone = "Europe/Paris";
+
       expect(() => excelDateToDayjs(excelDate, timezone)).toThrowError(
         `Date Excel invalide: ${excelDate}`
       );
     });
 
-    it("doit correctement appliquer un fuseau horaire différent", () => {
-      const excelDate = 44554;
+    it("should correctly apply a different timezone", () => {
+      const excelDate = 44554; // Corresponds to 2021-12-24
       const timezone = "America/New_York";
 
       const result = excelDateToDayjs(excelDate, timezone);
@@ -78,11 +79,12 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
     });
   });
 
-  // Tests pour la fonction JSDateToString
+  // Tests for the JSDateToString function
   describe("JSDateToString", () => {
-    it("doit convertir une date Excel valide en une chaîne formatée", () => {
-      const excelDate = 44554; // Date Excel valide
+    it("should convert a valid Excel date to a formatted string", () => {
+      const excelDate = 44554; // Corresponds to 2021-12-24
       const result = JSDateToString(excelDate);
+
       expect(result).toBe(
         dayjs
           .utc("2021-12-24T00:00:00Z")
@@ -94,64 +96,71 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
     it("should return a valid formatted date string for a valid Excel serial date", () => {
       const excelDate = 45505.33472222222;
       const result = JSDateToString(excelDate);
-      expect(result).toBe("01/08/2024 08:02:00"); // Remplacez par le format attendu
-    });
-    
-    it("should throw an error if the input is not a number", () => {
-      // Test avec une valeur de date invalide
-      const invalidExcelDate = "not-a-number";
-      expect(() => JSDateToString(invalidExcelDate)).toThrow(`La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidExcelDate}`);
+      expect(result).toBe("01/08/2024 08:02:00");
     });
 
-    it("doit lever une erreur si la date Excel est invalide", () => {
-      const excelDate = -1; // Date Excel invalide
+    it("should throw an error if the input is not a number", () => {
+      const invalidExcelDate = "not-a-number";
+
+      expect(() => JSDateToString(invalidExcelDate)).toThrow(
+        `La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidExcelDate}`
+      );
+    });
+
+    it("should throw an error if the Excel date is invalid", () => {
+      const excelDate = -1;
+
       expect(() => JSDateToString(excelDate)).toThrowError(
-        `Impossible de parser la date, skipped: -1 -> Invalid Date / Date invalide, skipped: -1 -> Invalid Date`
+        `Impossible de parser la date, skipped: ${excelDate} -> Invalid Date / Date invalide, skipped: ${excelDate} -> Invalid Date`
       );
     });
 
     it("should throw an error if the input is null", () => {
-      const invalidInput = null; // ou autre type invalide
-      expect(() => JSDateToString(invalidInput)).toThrow("La valeur de la colonne \"Date\" n'est pas un nombre, skipped: null");
+      const invalidInput = null;
+
+      expect(() => JSDateToString(invalidInput)).toThrow(
+        `La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidInput}`
+      );
     });
   });
 
-  // Tests pour la fonction formatHour
+  // Tests for the formatHour function
   describe("formatHour", () => {
-    it("doit formater une heure valide au format hh:mm", () => {
+    it("should format a valid time to hh:mm", () => {
       expect(formatHour("9h05")).toBe("09:05");
       expect(formatHour("14h30")).toBe("14:30");
       expect(formatHour("9h15")).toBe("09:15");
     });
 
-    it("doit lever une erreur si les heures sont sans deux-points", () => {
+    it("should throw an error if the time is not properly formatted", () => {
       const hour = "905";
+
       expect(() => formatHour(hour)).toThrowError(
-        `Le format de la valeur "Heure" n'est pas correct, skipped: ${hour}`
+        `Le format de la valeur \"Heure\" n'est pas correct, skipped: ${hour}`
       );
     });
 
-    it("doit ignorer les espaces et formater correctement", () => {
+    it("should ignore spaces and format correctly", () => {
       const hour = " 9 h 05 ";
+
       const result = formatHour(hour);
       expect(result).toBe("09:05");
     });
 
-    it("doit lever une erreur si l'heure ou les minutes sont invalides", () => {
-      const hour = "25h00"; // Heure invalide
+    it("should throw an error if the hour or minutes are invalid", () => {
+      const hour = "25h00"; // Invalid hour
+
       expect(() => formatHour(hour)).toThrowError(
-        `Les valeurs de "Heure" ou "Minute" ne sont pas correctes, skipped: ${hour}`
+        `Les valeurs de \"Heure\" ou \"Minute\" ne sont pas correctes, skipped: ${hour}`
       );
     });
 
-    it("doit lever une erreur pour une entrée vide ou undefined", () => {
-      expect(() => formatHour("")).toThrowError(
-        `Le format de la valeur "Heure" n'est pas correct, skipped: `
-      );
+    it("should throw an error for an empty or undefined input", () => {
+      expect(() => formatHour(""))
+        .toThrowError("Le format de la valeur \"Heure\" n'est pas correct, skipped: ");
 
-      expect(() => formatHour(undefined)).toThrowError(
-        `L'heure n'est pas définie, skipped: undefined`
-      );
+      expect(() => formatHour(undefined))
+        .toThrowError(`L\'heure n'est pas définie, skipped: undefined`);
     });
   });
 });
