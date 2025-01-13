@@ -4,19 +4,6 @@ const { dayjs, DATEHOUR_FORMAT } = require('../src/config/dayjsConfig');
 
 // Début des tests unitaires
 describe('Tests des fonctions utilitaires de gestion de dates', () => {
-  describe("Tests de conversion de dates Excel", () => {
-  
-    //TODO Implémenter cette exception dans excelDateToDayjs
-  /*   it("devrait retourner une date invalide si la valeur est incorrecte", () => {
-      const excelDate = -1; // Valeur incorrecte
-      const result = excelDateToDayjs(excelDate);
-      expect(result.isValid()).toBe(false);
-    }); */
-
-
-  });
-  
-
   // Tests pour la fonction excelDateToDayjs
   describe('excelDateToDayjs', () => {
     it('doit convertir une date d\'été Excel valide en un objet Dayjs avec le bon fuseau horaire', () => {
@@ -63,23 +50,20 @@ describe('Tests des fonctions utilitaires de gestion de dates', () => {
     });
 
     it('doit correctement appliquer un fuseau horaire différent', () => {
-      const excelDate = 44204;
+      const excelDate = 44554;
       const timezone = 'America/New_York';
       
       const result = excelDateToDayjs(excelDate, timezone);
-
-      console.log(result);
-      console.log(result.format());
       
       expect(result.isValid()).toBe(true);
-      expect(result.format()).toBe(dayjs.utc("2021-12-12T05:00:00Z").tz(timezone, true).format());
+      expect(result.format()).toBe(dayjs.utc("2021-12-24T00:00:00.000Z").tz(timezone, true).format());
     });
   });
 
   // Tests pour la fonction JSDateToString
   describe('JSDateToString', () => {
     it('doit convertir une date Excel valide en une chaîne formatée', () => {
-      const excelDate = 44204; // Date Excel valide
+      const excelDate = 44554; // Date Excel valide
       const result = JSDateToString(excelDate);
       expect(result).toBe(dayjs.utc("2021-12-24T00:00:00Z").tz('Europe/Paris', true).format(DATEHOUR_FORMAT));
     });
@@ -91,7 +75,7 @@ describe('Tests des fonctions utilitaires de gestion de dates', () => {
 
     it('doit lever une erreur si la date Excel est invalide', () => {
       const excelDate = -1; // Date Excel invalide
-      expect(() => JSDateToString(excelDate)).toThrowError(`Impossible de parser la date, skipped: -1 -> Invalid Date / Invalid Date`);
+      expect(() => JSDateToString(excelDate)).toThrowError(`Impossible de parser la date, skipped: -1 -> Invalid Date / Date invalide, skipped: -1 -> Invalid Date`);
     });
   });
 
@@ -103,10 +87,9 @@ describe('Tests des fonctions utilitaires de gestion de dates', () => {
       expect(result).toBe("09:05");
     });
 
-    it('doit gérer les heures sans deux-points et les formater correctement', () => {
+    it('doit lever une erreur si les heures sont sans deux-points', () => {
       const hour = "905";
-      const result = formatHour(hour);
-      expect(result).toBe("09:05");
+      expect(() => formatHour(hour)).toThrowError(`Le format de la valeur "Heure" n'est pas correct, skipped: ${hour}`);
     });
 
     it('doit ignorer les espaces et formater correctement', () => {
@@ -115,18 +98,15 @@ describe('Tests des fonctions utilitaires de gestion de dates', () => {
       expect(result).toBe("09:05");
     });
 
-    it('doit retourner 00:00 pour une heure invalide', () => {
+    it('doit lever une erreur si l\'heure ou les minutes sont invalides', () => {
       const hour = "25h00"; // Heure invalide
-      const result = formatHour(hour);
-      expect(result).toBe("00:00");
+      expect(() => formatHour(hour)).toThrowError(`Les valeurs de "Heure" ou "Minute" ne sont pas correctes, skipped: ${hour}`);
     });
 
-    it('doit retourner 00:00 pour une entrée vide ou undefined', () => {
-      const result = formatHour("");
-      expect(result).toBe("00:00");
+    it('doit lever une erreur pour une entrée vide ou undefined', () => {
+      expect(() => formatHour("")).toThrowError(`Le format de la valeur "Heure" n'est pas correct, skipped: `);
 
-      const undefinedResult = formatHour(undefined);
-      expect(undefinedResult).toBe("00:00");
+      expect(() => formatHour(undefined)).toThrowError(`L'heure n'est pas définie, skipped: undefined`);
     });
   });
 

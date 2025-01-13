@@ -60,16 +60,25 @@ function JSDateToString(excelDate) {
 
 // Fonction pour extraire et formater l'heure
 function formatHour(heure) {
+  if (heure == null) {
+    throw new Error(`L'heure n'est pas définie, skipped: ${heure}`);
+  }
+
   let formattedHour = heure.replace("h", ":").trim();
   const hourParts = formattedHour.split(":");
 
   if (hourParts.length === 2) {
     // Complète les heures et minutes à deux chiffres
-    const hours = hourParts[0].padStart(2, "0");
-    const minutes = hourParts[1].padStart(2, "0");
+    const hours = hourParts[0].trim().padStart(2, "0");
+    const minutes = hourParts[1].trim().padStart(2, "0");
+    
+    if ((hours<0) || (hours>24) || (minutes<0) || (minutes > 59)) {
+      throw new Error(`Les valeurs de "Heure" ou "Minute" ne sont pas correctes, skipped: ${heure}`);
+    }
+
     formattedHour = `${hours}:${minutes}`;
   } else {
-    formattedHour = "00:00"; // Valeur par défaut si format incorrect
+    throw new Error(`Le format de la valeur "Heure" n'est pas correct, skipped: ${heure}`);
   }
   return formattedHour;
 }
