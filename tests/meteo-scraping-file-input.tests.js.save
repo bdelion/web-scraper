@@ -190,34 +190,7 @@ describe("Tests de la fonction performObservationScraping", () => {
   });
 });
 
-// Tests pour JSDateToString
-describe("JSDateToString", () => {
 
-  it("should return a valid formatted date string for a valid Excel serial date", () => {
-    // Exemple de valeur d'Excel pour le 1er janvier 2023 (date : 44927)
-    const excelDate = 45505.33472222222;
-    const result = JSDateToString(excelDate);
-    expect(result).toBe("01/08/2024 08:02:00"); // Remplacez par le format attendu
-  });
-
-  it("should throw an error if the input is not a number", () => {
-    // Test avec une valeur de date invalide
-    const invalidExcelDate = "not-a-number";
-    expect(() => JSDateToString(invalidExcelDate)).toThrow("La valeur de la colonne \"Date\" n'est pas un nombre, skipped: not-a-number");
-  });
-
-  it("should throw an error if the input is null", () => {
-    const invalidInput = null; // ou autre type invalide
-    expect(() => JSDateToString(invalidInput)).toThrow("La valeur de la colonne \"Date\" n'est pas un nombre, skipped: null");
-  });
-
-  //TODO mais avec une gestion des exceptions dans JSDateToString en amont je pense 
-/*   it("should handle a valid Excel date but with invalid date parsing", () => {
-    // Cas où la date est valide mais le formatage échoue
-    const invalidDateExcel = 43000; // Vous pouvez choisir une valeur de test qui échoue dans votre logique
-    expect(() => JSDateToString(invalidDateExcel)).toThrow("Impossible de parser la date");
-  }); */
-});
 
 // Tests pour writeExcel
 describe('writeExcel', () => {

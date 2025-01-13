@@ -91,11 +91,16 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
       );
     });
 
-    it("doit lever une erreur si l'entrée n'est pas un nombre", () => {
-      const excelDate = "invalid"; // Entrée non valide
-      expect(() => JSDateToString(excelDate)).toThrowError(
-        'La valeur de la colonne "Date" n\'est pas un nombre, skipped: invalid'
-      );
+    it("should return a valid formatted date string for a valid Excel serial date", () => {
+      const excelDate = 45505.33472222222;
+      const result = JSDateToString(excelDate);
+      expect(result).toBe("01/08/2024 08:02:00"); // Remplacez par le format attendu
+    });
+    
+    it("should throw an error if the input is not a number", () => {
+      // Test avec une valeur de date invalide
+      const invalidExcelDate = "not-a-number";
+      expect(() => JSDateToString(invalidExcelDate)).toThrow(`La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidExcelDate}`);
     });
 
     it("doit lever une erreur si la date Excel est invalide", () => {
@@ -103,6 +108,11 @@ describe("Tests des fonctions utilitaires de gestion de dates", () => {
       expect(() => JSDateToString(excelDate)).toThrowError(
         `Impossible de parser la date, skipped: -1 -> Invalid Date / Date invalide, skipped: -1 -> Invalid Date`
       );
+    });
+
+    it("should throw an error if the input is null", () => {
+      const invalidInput = null; // ou autre type invalide
+      expect(() => JSDateToString(invalidInput)).toThrow("La valeur de la colonne \"Date\" n'est pas un nombre, skipped: null");
     });
   });
 
