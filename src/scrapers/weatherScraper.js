@@ -6,25 +6,44 @@ const { formatHour, excelDateToDayjs } = require("../utils/dateHourUtils");
 const { getAverage, findMedian } = require("../utils/mathUtils");
 const { log } = require("../utils/logUtils");
 
-// === CONSTANTES ===
-// URL de l'API pour la récupération de l'ID de station
+// === CONSTANTS ===
+// API URL for retrieving the station ID
 const BASE_URL = 'https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=';
-// Constante pour l'en-tête User-Agent
+// User-Agent header constant
 const USER_AGENT = "Mozilla/5.0";
 
+/**
+ * Cleans and parses a temperature string into a float.
+ * @param {string} temp - The temperature as a string.
+ * @returns {number|null} - The cleaned temperature as a float, or null if invalid.
+ */
 function cleanTemperature(temp) {
   const parsedTemp = parseFloat(temp);
   return isNaN(parsedTemp) ? null : parsedTemp;
 }
 
+/**
+ * Extracts weather data from a table row.
+ * @param {Object} row - The table row element.
+ * @param {Object} $ - The cheerio instance for DOM manipulation.
+ * @returns {Object} - An object containing extracted hour and temperature.
+ */
 function extractWeatherDataRow(row, $) {
   const cells = $(row).find("td");
   return {
     heure: $(cells[0]).text().trim(),
-    temperature: $(cells[2]).text().replace(/[^0-9.-]/g, "").trim() // Nettoyage avancé
+    temperature: $(cells[2]).text().replace(/[^0-9.-]/g, "").trim()
   };
 }
 
+/**
+ * Processes a weather data row and formats it.
+ * @param {Object} row - The table row element.
+ * @param {Object} $ - The cheerio instance for DOM manipulation.
+ * @param {Object} date - The dayjs date object.
+ * @param {string} weatherStationId - The station ID.
+ * @returns {Object|null} - The formatted weather data or null if invalid.
+ */
 function processWeatherRow(row, $, date, weatherStationId) {
   const { heure, temperature } = extractWeatherDataRow(row, $);
   if (!heure || !temperature || heure === "Heurelocale") return null;
@@ -46,57 +65,53 @@ function processWeatherRow(row, $, date, weatherStationId) {
 }
 
 /**
- * Récupère l'ID de station météo en utilisant le nom de la station.
- * @param {string} weatherStationName Le nom de la station météo à rechercher.
- * @returns {string} L'ID de la station météo.
+ * Retrieves the station ID using the station name.
+ * @param {string} weatherStationName - The name of the weather station.
+ * @returns {Promise<string>} - The station ID.
+ * @throws {ScrapingError} - Throws if the station name or response is invalid.
  */
 async function performIdStationScraping(weatherStationName) {
   if (typeof weatherStationName !== 'string' || !weatherStationName.trim()) {
     throw new ScrapingError("Invalid 'weatherStationName'", { weatherStationName });
   }
-  
-  // Encode le nom de la station pour l'inclure correctement dans l'URL
+
   const encodedStationName = encodeURIComponent(weatherStationName);
   const url = `${BASE_URL}${encodedStationName}`;
 
   try {
-    // Effectue la requête POST pour récupérer l'ID de la station
     const response = await axios.post(url, {}, {
-      headers: { "User-Agent": USER_AGENT } // Simule un navigateur
+      headers: { "User-Agent": USER_AGENT }
     });
 
-    // Vérifie si la réponse contient bien des données
     if (!response.data || typeof response.data !== 'string') {
-      throw new ScrapingError("Réponse invalide reçue pour la station", { weatherStationName });
+      throw new ScrapingError("Invalid response received for the station", { weatherStationName });
     }
 
-    // Sépare la réponse par '|' et récupère l'ID de la station
     const idStation = response.data.split("|")[0].trim();
 
-    // Si l'ID est invalide ou vide, renvoie une erreur
     if (!idStation) {
-      throw new ScrapingError("ID de la station non trouvé dans la réponse", { weatherStationName });
+      throw new ScrapingError("Station ID not found in the response", { weatherStationName });
     }
 
-    // Si l'ID est n'est pas un nombre
     if (!(!isNaN(Number(idStation)) && Number(idStation).toString() === idStation)) {
-      throw new ScrapingError("ID de la station n'est pas un nombre dans la réponse", { weatherStationName });
+      throw new ScrapingError("Station ID is not a number in the response", { weatherStationName });
     }
 
     return idStation;
   } catch (error) {
     if (error instanceof ScrapingError) {
-      throw error; // Relance l'erreur personnalisée
+      throw error;
     }
     throw new ScrapingError(`Unexpected error on ${url}: ${error.message}`, { originalError: error });
   }
 }
 
 /**
- * Récupère les données météo pour une commune et une date.
- * @param {string} weatherStationId L'ID de la station météo.
- * @param {dayjs} date La date à laquelle récupérer les données.
- * @returns {Array} Un tableau des données météo.
+ * Retrieves weather data for a given station and date.
+ * @param {string} weatherStationId - The weather station ID.
+ * @param {Object} date - The dayjs date object.
+ * @returns {Promise<Array>} - An array of weather data.
+ * @throws {ScrapingError} - Throws if the station ID or date is invalid, or on network errors.
  */
 async function performObservationScraping(weatherStationId, date) {
   if (typeof weatherStationId !== 'string' || !weatherStationId.trim()) {
@@ -108,10 +123,10 @@ async function performObservationScraping(weatherStationId, date) {
 
   const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${weatherStationId}&jour2=${date.date()}&mois2=${date.month()}&annee2=${date.year()}&affint=1`;
 
-  log(`URL appelée ${url}`, "info");
+  log(`URL called: ${url}`, "info");
 
   try {
-    const response = await axios.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const response = await axios.get(url, { headers: { "User-Agent": USER_AGENT } });
     if (response.status !== 200) {
       throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
     }
@@ -131,65 +146,55 @@ async function performObservationScraping(weatherStationId, date) {
     return dataWeather;
   } catch (error) {
     if (error.response) {
-      // Erreur HTTP
       throw new ScrapingError(`HTTP error on ${url}: ${error.response.statusText} (${error.response.status})`, { url });
     }
     if (error.request) {
-      // Erreur réseau
       throw new ScrapingError(`Network error while accessing ${url}`, { url, originalError: error });
     }
     throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
   }
 }
 
-// Récupération des données météo entre deux dates
+/**
+ * Retrieves weather data between two dates for a given station.
+ * @param {string} weatherStationId - The weather station ID.
+ * @param {number} startDate - The start date in Excel format.
+ * @param {number} endDate - The end date in Excel format.
+ * @returns {Promise<Object>} - Weather data summary including min, max, average, and median temperatures.
+ */
 async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate) {
-  // Formatage des dates Excel en date Dayjs sur le fuseau horaire de Paris
-  let dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
-  let dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
-  // Init de la date de début d'itération
+  const dayjsStartDate = excelDateToDayjs(startDate, 'Europe/Paris');
+  const dayjsEndDate = excelDateToDayjs(endDate, 'Europe/Paris');
   let dateIteration = dayjsStartDate.clone();
-  // Init de la date de fin d'itération
   let dateEndIteration;
-  // WARNING : les itérations se font sur des dates heures et pas des dates d'où la nécessité d'ajuster la date de fin d'itération
-  // Si date de début et date de fin sont égale ou si l'heure de fin est strictement supérieure à l'heure de début sans tenir compte de la date
-  // Alors la date de fin d'itération est égale à la date de fin
-  // Sinon la date de fin d'itération est égale à la date de fin + 1 jour
-
-  log(`dayjsStartDate HOUR FORMAT : ${dayjsStartDate.format(HOUR_FORMAT)}`, "info");
-  log(`dayjsEndDate HOUR FORMAT : ${dayjsEndDate.format(HOUR_FORMAT)}`, "info");
-  log(`Compare : ${(dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))}`, "info");
 
   if ((dayjsStartDate.format(DATE_FORMAT) === dayjsEndDate.format(DATE_FORMAT)) || (dayjsEndDate.format(HOUR_FORMAT) > dayjsStartDate.format(HOUR_FORMAT))) {
     dateEndIteration = dayjsEndDate.clone();
   } else {
     dateEndIteration = dayjsEndDate.clone().add(1, "day");
   }
-  
-  log(`dayjsStartDate : ${dayjsStartDate}`, "info");
-  log(`dayjsEndDate : ${dayjsEndDate}`, "info");
-  log(`dateEndIteration : ${dateEndIteration}`, "info");
+
+  log(`Start Date: ${dayjsStartDate}`, "info");
+  log(`End Date: ${dayjsEndDate}`, "info");
+  log(`End Iteration Date: ${dateEndIteration}`, "info");
 
   const datasWeather = [];
-  // Scraping de données pour la station sur la plage de dates
   while (dateIteration.isBefore(dateEndIteration)) {
-    log(`dateIteration : ${dateIteration}`, "info");
+    log(`Iteration Date: ${dateIteration}`, "info");
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
     datasWeather.push(...dayWeather);
     dateIteration = dateIteration.add(1, "day");
   }
 
-  // Filtrer les données pour n'avoir que celles sur la plage de dates en tenant compte des heures
   const filteredDatas = datasWeather.filter(
     (data) =>
       ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
   );
 
-  // Tableau des données de températures uniquement pour les calculs
   const temperatures = filteredDatas.map((data) => Number(data.temperature));
 
-  log(`Tableau des températures entre ${dayjsStartDate} et ${dayjsEndDate} : ${temperatures}`, "info");
-  
+  log(`Temperatures between ${dayjsStartDate} and ${dayjsEndDate}: ${temperatures}`, "info");
+
   return {
     weatherStationId,
     startDate: dayjsStartDate.toDate(),
