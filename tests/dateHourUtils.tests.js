@@ -61,9 +61,7 @@ describe("Utility functions for date management", () => {
       const excelDate = "InvalidDate";
       const timezone = "Europe/Paris";
 
-      expect(() => excelDateToDayjs(excelDate, timezone)).toThrowError(
-        `Date Excel invalide: ${excelDate}`
-      );
+      expect(() => excelDateToDayjs(excelDate, timezone)).toThrowError(`Invalid Excel date: ${excelDate}`);
     });
 
     it("should correctly apply a different timezone", () => {
@@ -103,7 +101,7 @@ describe("Utility functions for date management", () => {
       const invalidExcelDate = "not-a-number";
 
       expect(() => JSDateToString(invalidExcelDate)).toThrow(
-        `La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidExcelDate}`
+        `Column \"Date\" value is not a number, skipped: ${invalidExcelDate}`
       );
     });
 
@@ -111,7 +109,7 @@ describe("Utility functions for date management", () => {
       const excelDate = -1;
 
       expect(() => JSDateToString(excelDate)).toThrowError(
-        `Impossible de parser la date, skipped: ${excelDate} -> Invalid Date / Date invalide, skipped: ${excelDate} -> Invalid Date`
+        `Unable to parse date, skipped: ${excelDate} -> Invalid Date / Invalid date, skipped: ${excelDate} -> Invalid Date`
       );
     });
 
@@ -119,7 +117,7 @@ describe("Utility functions for date management", () => {
       const invalidInput = null;
 
       expect(() => JSDateToString(invalidInput)).toThrow(
-        `La valeur de la colonne \"Date\" n'est pas un nombre, skipped: ${invalidInput}`
+        `Column \"Date\" value is not a number, skipped: ${invalidInput}`
       );
     });
   });
@@ -136,7 +134,7 @@ describe("Utility functions for date management", () => {
       const hour = "905";
 
       expect(() => formatHour(hour)).toThrowError(
-        `Le format de la valeur \"Heure\" n'est pas correct, skipped: ${hour}`
+        `Hour value format is incorrect, skipped: ${hour}`
       );
     });
 
@@ -151,16 +149,16 @@ describe("Utility functions for date management", () => {
       const hour = "25h00"; // Invalid hour
 
       expect(() => formatHour(hour)).toThrowError(
-        `Les valeurs de \"Heure\" ou \"Minute\" ne sont pas correctes, skipped: ${hour}`
+        `Hour or minute values are invalid, skipped: ${hour}`
       );
     });
 
     it("should throw an error for an empty or undefined input", () => {
       expect(() => formatHour(""))
-        .toThrowError("Le format de la valeur \"Heure\" n'est pas correct, skipped: ");
+        .toThrowError("Hour value format is incorrect, skipped: ");
 
       expect(() => formatHour(undefined))
-        .toThrowError(`L\'heure n'est pas définie, skipped: undefined`);
+        .toThrowError(`Hour is not defined, skipped: undefined`);
     });
   });
 });

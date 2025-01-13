@@ -1,85 +1,99 @@
 const { dayjs, DATEHOUR_FORMAT } = require("../config/dayjsConfig");
 
-// Fonction pour convertir une date Excel (nombre) en date Dayjs en appliquant le fuseau horaire
+/**
+ * Converts an Excel date serial number to a Dayjs date, applying a timezone.
+ * @param {number} serial - The Excel serial number representing a date.
+ * @param {string} [timezoneString='Europe/Paris'] - The timezone to apply.
+ * @returns {Object} A Dayjs object representing the converted date.
+ * @throws Will throw an error if the serial number is invalid or the resulting date is invalid.
+ */
 function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
-  const MS_PER_DAY = 24 * 60 * 60 * 1000; // Millisecondes par jour
-  const excelEpoch = Date.UTC(1900, 0, 1); // 1er janvier 1900 UTC
-  
-  // Vérification explicite pour les dates avant 1900
+  const MS_PER_DAY = 24 * 60 * 60 * 1000; // Milliseconds per day
+  const excelEpoch = Date.UTC(1900, 0, 1); // January 1, 1900, UTC
+
+  // Explicit check for dates before 1900
   if (serial < 1) {
-    return dayjs(null); // Renvoie une date invalide (null)
+    return dayjs(null); // Returns an invalid date (null)
   }
 
-  // Ajustement pour le bug de l'année 1900 : 
-  // Excel considère 1900 comme une année bissextile, mais en réalité elle ne l'est pas.
-  // Pour corriger cela, les dates >= 60 sont décalées de 2 jours.
+  // Adjustment for Excel's leap year bug: Excel treats 1900 as a leap year.
   const daysOffset = serial >= 60 ? serial - 2 : serial - 1;
 
-  // Conversion en millisecondes avec arrondi pour éviter les imprécisions
+  // Convert to milliseconds with rounding to avoid precision issues
   const exactMilliseconds = Math.round(daysOffset * MS_PER_DAY);
 
-  // Conversion en date UTC
+  // Convert to UTC date
   const utcDate = new Date(excelEpoch + exactMilliseconds);
-  
-  // Vérification si la date est valide
+
+  // Check if the date is valid
   if (isNaN(utcDate)) {
-    throw new Error(`Date Excel invalide: ${serial}`);
+    throw new Error(`Invalid Excel date: ${serial}`);
   }
 
-  // Création d'un objet dayjs en UTC
+  // Create a Dayjs object in UTC
   const dateInUTC = dayjs.utc(utcDate);
 
-  // Appliquer le fuseau horaire à cette date UTC
-  const finalDate = dateInUTC.tz(timezoneString, true); // `true` pour éviter l'ajout d'un offset supplémentaire
+  // Apply the timezone to this UTC date
+  const finalDate = dateInUTC.tz(timezoneString, true); // `true` prevents additional offset application
 
   return finalDate;
 }
 
-// Fonction pour convertir une date Excel (nombre) en chaine de caractère
+/**
+ * Converts an Excel date serial number to a formatted string.
+ * @param {number} excelDate - The Excel serial number representing a date.
+ * @returns {string} A formatted date string based on DATEHOUR_FORMAT.
+ * @throws Will throw an error if the input is not a number or the date cannot be parsed.
+ */
 function JSDateToString(excelDate) {
-  let parsedDate
+  let parsedDate;
 
-  // Si la valeur est un nombre (timestamp Excel), convertis-la en date
   if (typeof excelDate === "number") {
     try {
-      // Conversion du nombre Excel en date Dayjs
-      parsedDate= excelDateToDayjs(excelDate, 'Europe/Paris');
-      // Vérification de la validité de la date
+      // Convert the Excel serial number to a Dayjs date
+      parsedDate = excelDateToDayjs(excelDate, 'Europe/Paris');
+
       if (parsedDate.isValid()) {
         return parsedDate.format(DATEHOUR_FORMAT);
       } else {
-        throw new Error(`Date invalide, skipped: ${excelDate} -> ${parsedDate}`);
+        throw new Error(`Invalid date, skipped: ${excelDate} -> ${parsedDate}`);
       }
     } catch (error) {
-      throw new Error(`Impossible de parser la date, skipped: ${excelDate} -> ${parsedDate} / ${error.message}`);
+      throw new Error(`Unable to parse date, skipped: ${excelDate} -> ${parsedDate} / ${error.message}`);
     }
   } else {
-    throw new Error(`La valeur de la colonne "Date" n'est pas un nombre, skipped: ${excelDate}`);
+    throw new Error(`Column "Date" value is not a number, skipped: ${excelDate}`);
   }
 }
 
-// Fonction pour extraire et formater l'heure
+/**
+ * Formats an hour string, ensuring it's in the correct format (HH:mm).
+ * @param {string} heure - The hour string to format (e.g., "12h30").
+ * @returns {string} A properly formatted hour string.
+ * @throws Will throw an error if the input is null, incorrectly formatted, or contains invalid values.
+ */
 function formatHour(heure) {
   if (heure == null) {
-    throw new Error(`L'heure n'est pas définie, skipped: ${heure}`);
+    throw new Error(`Hour is not defined, skipped: ${heure}`);
   }
 
   let formattedHour = heure.replace("h", ":").trim();
   const hourParts = formattedHour.split(":");
 
   if (hourParts.length === 2) {
-    // Complète les heures et minutes à deux chiffres
+    // Pad hours and minutes to two digits
     const hours = hourParts[0].trim().padStart(2, "0");
     const minutes = hourParts[1].trim().padStart(2, "0");
-    
-    if ((hours<0) || (hours>24) || (minutes<0) || (minutes > 59)) {
-      throw new Error(`Les valeurs de "Heure" ou "Minute" ne sont pas correctes, skipped: ${heure}`);
+
+    if (hours < 0 || hours > 24 || minutes < 0 || minutes > 59) {
+      throw new Error(`Hour or minute values are invalid, skipped: ${heure}`);
     }
 
     formattedHour = `${hours}:${minutes}`;
   } else {
-    throw new Error(`Le format de la valeur "Heure" n'est pas correct, skipped: ${heure}`);
+    throw new Error(`Hour value format is incorrect, skipped: ${heure}`);
   }
+
   return formattedHour;
 }
 
