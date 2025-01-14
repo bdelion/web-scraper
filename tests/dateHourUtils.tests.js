@@ -1,6 +1,7 @@
 // Import the functions to be tested
 const {
   excelDateToDayjs,
+  dateToExcelValue,
   JSDateToString,
   formatHour,
 } = require("../src/utils/dateHourUtils");
@@ -74,6 +75,51 @@ describe("Utility functions for date management", () => {
       expect(result.format()).toBe(
         dayjs.utc("2021-12-24T00:00:00.000Z").tz(timezone, true).format()
       );
+    });
+  });
+
+  // Tests for the dateToExcelValue function
+  describe('dateToExcelValue', () => {
+    it('should convert a valid date before 28/02/1900 correctly', () => {
+      // Should return 1 for the first day of January 1900
+      expect(dateToExcelValue('01/01/1900 00:00:00')).toBe(1);
+      // Should return a value close to 58.9999884259 for 27th February 1900
+      expect(dateToExcelValue('27/02/1900 23:59:59')).toBeCloseTo(58.9999884259, 10);
+    });
+  
+    it('should convert a valid date after 28/02/1900 correctly (Leap year bug adjustment)', () => {
+      // Should return 61 for 1st March 1900 (after the leap year bug adjustment)
+      expect(dateToExcelValue('01/03/1900 00:00:00')).toBe(61);
+      // Should return a value close to 45717,5 for 1st March 2025
+      expect(dateToExcelValue('01/03/2025 12:00:00')).toBeCloseTo(45717.5, 10);
+    });
+  
+    it('should handle precise times correctly', () => {
+      // Should return 1.5 for the noon time on 1st January 1900
+      expect(dateToExcelValue('01/01/1900 12:00:00')).toBe(1.5);
+      // Should return 2.25 for 6 AM on 2nd January 1900
+      expect(dateToExcelValue('02/01/1900 06:00:00')).toBe(2.25);
+    });
+  
+    it('should throw an error for invalid dates', () => {
+      // Should throw an error for invalid date strings
+      expect(() => dateToExcelValue('InvalidDate')).toThrow('Invalid date provided.');
+      // Should throw an error for incorrectly formatted dates (e.g., month 13)
+      expect(() => dateToExcelValue('32/13/1900 00:00:00')).toThrow('Invalid date provided.');
+      // Should throw an error for empty strings
+      expect(() => dateToExcelValue('')).toThrow('Invalid date provided.');
+    });
+  
+    it('should handle dates exactly at the epoch (01/01/1900)', () => {
+      // Should return 1 for the epoch date (1st January 1900)
+      expect(dateToExcelValue('01/01/1900 00:00:00')).toBe(1);
+    });
+  
+    it('should handle dates with different times correctly', () => {
+      // Should return a value close to 0.9999884259 for the date 31st December 1899 at 23:59:59
+      expect(dateToExcelValue('31/12/1899 23:59:59')).toBeCloseTo(0.9999884259, 10);
+      // Should return a value close to 1.25 for 1st January 1900 at 6 AM
+      expect(dateToExcelValue('01/01/1900 06:00:00')).toBeCloseTo(1.25, 10);
     });
   });
 
