@@ -4,8 +4,8 @@ const {
   dateToExcelValue,
   JSDateToString,
   formatHour,
-} = require("../src/utils/dateHourUtils");
-const { dayjs, DATEHOUR_FORMAT } = require("../src/config/dayjsConfig");
+} = require("../../src/utils/dateHourUtils");
+const { dayjs, DATEHOUR_FORMAT } = require("../../src/config/dayjsConfig");
 
 // Start of unit tests
 describe("Utility functions for date management", () => {
