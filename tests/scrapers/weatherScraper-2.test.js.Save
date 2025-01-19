@@ -54,13 +54,13 @@ describe('getWeatherDataBetween2Dates', () => {
   });
 
   // Mock the performObservationScraping function
-  jest.mock('../src/scrapers/weatherScraper', () => ({
+  jest.mock('../../src/scrapers/weatherScraper', () => ({
     performObservationScraping: jest.fn()
   }));
 
   it('should return weather data summary for valid dates and station ID', async () => {
-    //jest.spyOn(global, 'performObservationScraping').mockImplementation(async () => mockWeatherData);
-    jest.spyOn(global, 'performObservationScraping').mockResolvedValue(mockWeatherData);
+    jest.spyOn(global, 'performObservationScraping').mockImplementation(async () => mockWeatherData);
+    //TODEL jest.spyOn(global, 'performObservationScraping').mockResolvedValue(mockWeatherData);
 
     console.log(performObservationScraping);
 

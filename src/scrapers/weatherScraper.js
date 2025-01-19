@@ -255,5 +255,6 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
 
 module.exports = {
   performIdStationScraping,
+  performObservationScraping,
   getWeatherDataBetween2Dates,
 };
