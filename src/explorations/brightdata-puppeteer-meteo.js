@@ -9,7 +9,6 @@ async function performScraping(date) {
   let month = momentDate.month();
   let year = momentDate.year();
   let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=79049004&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
-  const temperatureLabel = "Température";
   const heureLocaleLabel = "Heure\nlocale";
   // initializing the data structures that will contain the scraped data
   const dataMeteo = [];

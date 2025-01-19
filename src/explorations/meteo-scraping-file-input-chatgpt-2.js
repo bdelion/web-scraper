@@ -3,7 +3,7 @@
 "use strict";
 
 // Import des modules nécessaires
-const XLSX = require("xlsx");
+// const XLSX = require("xlsx");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const dayjs = require("dayjs");
