@@ -1,0 +1,91 @@
+const { performIdStationScraping, getWeatherDataBetween2Dates, performObservationScraping } = require("../../src/scrapers/weatherScraper");
+const { excelDateToDayjs } = require('../../src/utils/dateHourUtils');
+const axios = require('axios');
+const dayjs = require('dayjs');
+
+jest.mock('axios');
+
+describe('performIdStationScraping', () => {
+  const weatherStationName = 'TestStation';
+  const mockResponse = '12345|StationName';
+
+  beforeEach(() => {
+    axios.post.mockReset();
+  });
+
+  it('should return station ID for a valid station name', async () => {
+    axios.post.mockResolvedValueOnce({ data: mockResponse });
+    const stationId = await performIdStationScraping(weatherStationName);
+    expect(stationId).toBe('12345');
+  });
+
+  it('should retry and succeed on transient network errors', async () => {
+    axios.post
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ data: mockResponse });
+    const stationId = await performIdStationScraping(weatherStationName);
+    expect(stationId).toBe('12345');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw an error for an invalid station name', async () => {
+    await expect(performIdStationScraping('')).rejects.toThrow('Invalid \'weatherStationName\'');
+  });
+
+  it('should throw an error if station ID is not found in the response', async () => {
+    axios.post.mockResolvedValueOnce({ data: '|StationName' });
+    await expect(performIdStationScraping(weatherStationName)).rejects.toThrow('Station ID not found');
+  });
+});
+
+describe('getWeatherDataBetween2Dates', () => {
+  const mockWeatherData = [
+    { temperature: '15.5', dayjs: dayjs('2023-01-01T12:00:00Z') },
+    { temperature: '17.0', dayjs: dayjs('2023-01-01T15:00:00Z') },
+    { temperature: '10.2', dayjs: dayjs('2023-01-02T09:00:00Z') },
+  ];
+
+  const weatherStationId = '12345';
+  const startDate = 44628; // Excel date for 2022-01-01
+  const endDate = 44629; // Excel date for 2022-01-02
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // Mock the performObservationScraping function
+  jest.mock('../../src/scrapers/weatherScraper', () => ({
+    performObservationScraping: jest.fn()
+  }));
+
+  it('should return weather data summary for valid dates and station ID', async () => {
+    jest.spyOn(global, 'performObservationScraping').mockImplementation(async () => mockWeatherData);
+    //TODEL jest.spyOn(global, 'performObservationScraping').mockResolvedValue(mockWeatherData);
+
+    console.log(performObservationScraping);
+
+    // Set up the mock to resolve with mock data
+    //performObservationScraping.mockResolvedValue(mockWeatherData);
+
+    const result = await getWeatherDataBetween2Dates(weatherStationId, startDate, endDate);
+
+    expect(result).toMatchObject({
+      weatherStationId,
+      minTemperature: 10.2,
+      maxTemperature: 17.0,
+      averageTemperature: expect.any(Number),
+      medianTemperature: expect.any(Number),
+    });
+
+    expect(result.startDate).toEqual(excelDateToDayjs(startDate).toDate());
+    expect(result.endDate).toEqual(excelDateToDayjs(endDate).toDate());
+  });
+
+  it('should throw an error for invalid station ID', async () => {
+    await expect(getWeatherDataBetween2Dates('', startDate, endDate)).rejects.toThrow('Invalid \'weatherStationId\'');
+  });
+
+  it('should throw an error for invalid date inputs', async () => {
+    await expect(getWeatherDataBetween2Dates(weatherStationId, null, endDate)).rejects.toThrow('One or both of the dates are invalid.');
+  });
+});

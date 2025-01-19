@@ -3,9 +3,9 @@
 "use strict";
 
 // === MODULES IMPORTÉS ===
-const XLSX = require("xlsx");
-const axios = require("axios");
-const cheerio = require("cheerio");
+// const XLSX = require("xlsx");
+// const axios = require("axios");
+// const cheerio = require("cheerio");
 const dayjs = require("dayjs");
 const customParseFormat = require("dayjs/plugin/customParseFormat");
 const utc = require('dayjs/plugin/utc'); // Plugin pour UTC
@@ -19,9 +19,9 @@ require('dayjs/locale/fr');  // Charger la locale française
 dayjs.locale('fr');  // Appliquer la locale par défaut à toutes les instances de Day.js
 
 // === CONSTANTES ===
-const DATE_FORMAT = "DD/MM/YYYY";
-const HOUR_FORMAT = "HH:mm:ss";
-const DATEHOUR_FORMAT = "DD/MM/YYYY HH:mm:ss";
+// const DATE_FORMAT = "DD/MM/YYYY";
+// const HOUR_FORMAT = "HH:mm:ss";
+// const DATEHOUR_FORMAT = "DD/MM/YYYY HH:mm:ss";
 
 // Fonction pour convertir une date Excel (nombre) en date Dayjs en appliquant le fuseau horaire
 function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
@@ -89,7 +89,7 @@ frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
 console.log(`01/01/1911 07:00:00 -> ${frenchDate}`);
 console.log(`01/01/1911 07:00:00 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
 
-****************** ENTRE CES 2 DATES il y a un truc **************************************************
+// ****************** ENTRE CES 2 DATES il y a un truc **************************************************
 
 excelValue = 4383.999988425926; // Valeur Excel
 frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
