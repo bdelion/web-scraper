@@ -1,10 +1,34 @@
 const axios = require("axios");
 const MockAdapter = require("axios-mock-adapter");
+const fs = require("fs");
+const path = require("path");
+const { dayjs } = require("../../src/config/dayjsConfig");
 
 const {
   performIdStationScraping,
+  performObservationScraping,
   getWeatherDataBetween2Dates,
 } = require("../../src/scrapers/weatherScraper");
+
+require("jest-extended"); // Si vous utilisez jest-extended pour les assertions personnalisées
+
+// Fonction d'extension pour Jest afin de valider les objets Day.js
+expect.extend({
+  toBeDayjs(received) {
+    const pass = dayjs.isDayjs(received);
+    if (pass) {
+      return {
+        message: () => `expected ${received} not to be a valid Day.js object`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `expected ${received} to be a valid Day.js object`,
+        pass: false,
+      };
+    }
+  },
+});
 
 // Create a mock timestamp for comparison
 const mockTimestamp = '01/01/2025 12:00:01';
@@ -91,6 +115,40 @@ describe("performIdStationScraping", () => {
       .networkError();
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Unexpected error: Network Error");
+  });
+
+  // Cas où la réponse HTTP réussie avec données météo valides
+  it("devrait récupérer et formater les données météo correctement", async () => {
+    const mockData = fs.readFileSync(
+      path.resolve(__dirname, "../mocks/mockWeatherData.html"),
+      "utf-8"
+    );
+
+    mockAxios.onGet(/https:\/\/www\.meteociel\.fr\/temps-reel\/obs_villes\.php.*/)
+      .reply(200, mockData);
+
+    const stationId = "1234";
+    const mockDate = dayjs("2024-12-14");
+
+    const result = await performObservationScraping(stationId, mockDate);
+
+    // Vérifiez les formats et les valeurs
+    expect(result).toEqual([
+      expect.objectContaining({
+        weatherStationId: stationId,
+        heure: "23:54",
+        temperature: 4.9,
+        dayjs: expect.toBeDayjs(), // Utilisation de l'assertion personnalisée
+        dayjsFormated: "14/12/2024 23:54:00",
+      }),
+      expect.objectContaining({
+        weatherStationId: stationId,
+        heure: "23:48",
+        temperature: 4.8,
+        dayjs: expect.toBeDayjs(), // Utilisation de l'assertion personnalisée
+        dayjsFormated: "14/12/2024 23:48:00",
+      }),
+    ]);
   });
 });
 
