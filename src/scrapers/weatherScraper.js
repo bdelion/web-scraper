@@ -19,12 +19,14 @@ const USER_AGENT = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win6
  * @returns {number|null} - The cleaned temperature as a float, or null if invalid.
  */
 function cleanTemperature(temp) {
-  if (typeof temp !== 'string' || !temp.trim()) {
+  const parsedTemp = parseFloat(temp);
+  
+  if (typeof temp !== 'string' || !temp.trim() || isNaN(parsedTemp)) {
     log(`Unexpected temperature input: ${temp}`, "error");
     return null;
   }
-  const parsedTemp = parseFloat(temp);
-  return isNaN(parsedTemp) ? null : parsedTemp;
+
+  return parsedTemp;
 }
 
 /**
@@ -254,6 +256,7 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
 }
 
 module.exports = {
+  cleanTemperature,
   performIdStationScraping,
   performObservationScraping,
   getWeatherDataBetween2Dates,

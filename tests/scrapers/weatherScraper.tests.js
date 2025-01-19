@@ -5,9 +5,57 @@ const {
   performIdStationScraping,
   getWeatherDataBetween2Dates,
 } = require("../../src/scrapers/weatherScraper");
-const { dayjs } = require("../../src/config/dayjsConfig");
+
+// Create a mock timestamp for comparison
+const mockTimestamp = '01/01/2025 12:00:01';
 
 const mockAxios = new MockAdapter(axios);
+
+describe("cleanTemperature", () => {
+  let cleanTemperature;
+  let spyConsoleLog;
+
+  beforeEach(() => {
+    // Mock `getCurrentTimestamp` dynamiquement
+    jest.resetModules();
+    jest.doMock("../../src/utils/dateHourUtils", () => ({
+      getCurrentTimestamp: jest.fn().mockReturnValue(mockTimestamp),
+    }));
+
+    // Réimporter les dépendances avec le mock appliqué
+    cleanTemperature = require("../../src/scrapers/weatherScraper").cleanTemperature;
+
+    // Mock de console.log pour capturer les appels
+    spyConsoleLog = jest.spyOn(console, "log").mockImplementation();
+  });
+
+  afterEach(() => {
+    spyConsoleLog.mockRestore(); // Réinitialiser le mock de console.log
+    jest.resetModules(); // Réinitialiser tous les modules
+  });
+  
+  it("should return the cleaned temperature as a number for valid input", () => {
+    expect(cleanTemperature("23.5")).toBe(23.5);
+  });
+
+  it("should return null for empty string and log error", () => {
+    const message = 'Unexpected temperature input: ';
+    const expectedOutput = `❌ ${mockTimestamp} - ${message}`;
+
+    const spy = jest.spyOn(console, 'log');
+    expect(cleanTemperature("")).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+
+  it("should return null for non-numeric input and log error", () => {
+    const message = 'Unexpected temperature input: abc';
+    const expectedOutput = `❌ ${mockTimestamp} - ${message}`;
+
+    const spy = jest.spyOn(console, 'log');
+    expect(cleanTemperature("abc")).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+});
 
 describe("performIdStationScraping", () => {
   afterEach(() => {
