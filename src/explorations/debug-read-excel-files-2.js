@@ -1,4 +1,4 @@
-const { dayjs, DATEHOUR_FORMAT } = require('../src/config/dayjsConfig');
+const { dayjs, DATEHOUR_FORMAT } = require('../config/dayjsConfig');
 
 const XLSX = require('xlsx');
 const MS_PER_DAY = 24 * 60 * 60 * 1000; // Millisecondes par jour

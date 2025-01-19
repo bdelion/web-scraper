@@ -31,7 +31,7 @@ function dateToExcelValue(inputDate) {
 }
 
 // Exemple d'utilisation
-const { dayjs, DATEHOUR_FORMAT } = require("../src/config/dayjsConfig");
+const { dayjs, DATEHOUR_FORMAT } = require("../config/dayjsConfig");
 
 // Tester avec des dates
 let dateInput = '12/01/2025 00:00:00';
