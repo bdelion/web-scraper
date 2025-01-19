@@ -115,11 +115,11 @@ async function performIdStationScraping(stationName) {
 }
 
 // Fonction pour lire et convertir un fichier Excel
-function readExcel(inputFile, sheetName, firstRow) {
-  const workbook = XLSX.readFile(inputFile);
-  const sheet = workbook.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
-}
+// function readExcel(inputFile, sheetName, firstRow) {
+//   const workbook = XLSX.readFile(inputFile);
+//   const sheet = workbook.Sheets[sheetName];
+//   return XLSX.utils.sheet_to_json(sheet, { range: firstRow, raw: true });
+// }
 
 // Exemple d'exécution
 (async () => {

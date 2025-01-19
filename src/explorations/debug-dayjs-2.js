@@ -89,7 +89,7 @@ frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');
 console.log(`01/01/1911 07:00:00 -> ${frenchDate}`);
 console.log(`01/01/1911 07:00:00 -> ${frenchDate.format('DD/MM/YYYY HH:mm')}`);
 
-****************** ENTRE CES 2 DATES il y a un truc **************************************************
+// ****************** ENTRE CES 2 DATES il y a un truc **************************************************
 
 excelValue = 4383.999988425926; // Valeur Excel
 frenchDate = excelDateToDayjs(excelValue, 'Europe/Paris');

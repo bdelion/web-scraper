@@ -3,7 +3,6 @@
 "use strict";
 
 const XLSX = require('xlsx');
-const fs = require('fs');
 
 const parseExcelDate1 = (excelDate) => {
   const excelEpoch = new Date(1900, 0, 1);  // 1er janvier 1900
@@ -69,8 +68,12 @@ const readExcel = (inputFile) => {
       console.log("Date avant transformation :", row.Date); // Afficher la date actuelle
       // Transformer les dates si besoin
       // row.Date = new Date(row.Date).toLocaleDateString('fr-FR');
+      row.Date = parseExcelDate1(row.Date);
+      console.log("Date après transformation 1 :", row.Date); // Afficher la date transformée
+      row.Date = parseExcelDate2(row.Date);
+      console.log("Date après transformation 2 :", row.Date); // Afficher la date transformée
       row.Date = parseExcelDate(row.Date);
-      console.log("Date après transformation :", row.Date); // Afficher la date transformée
+      console.log("Date après transformation 3 :", row.Date); // Afficher la date transformée
     }
   });
 
