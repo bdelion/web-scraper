@@ -1,18 +1,33 @@
 // Import necessary modules and constants.
 const { dayjs, DATEHOUR_FORMAT } = require("../config/dayjsConfig");
 
+// List of valid log levels
+const logLevels = ["info", "warn", "error", "debug"];
+
+// Define icons for each log level
+const iconsLevels = { info: "ℹ️", warn: "⚠️", error: "❌", debug: "🐞" };
+
 /**
  * Logs messages to the console with a timestamp and severity level.
  *
- * @param {string} message - The message to log.
- * @param {string} [level="info"] - The severity level of the message. Can be "info", "warn", or "error".
+ * @param {string | string[]} message - The message or array of messages to log.
+ * @param {string} [level="info"] - The severity level of the message. Can be "info", "warn", "error", or "debug".
  */
-const log = (message, level = "info") => {
-  // Define icons for each log level.
-  const levels = { info: "ℹ️", warn: "⚠️", error: "❌" };
+const log = (messages, level = "info") => {
+  if (!Array.isArray(messages)) {
+    messages = [messages]; // If it's a single message, convert to an array
+  }
 
-  // Log the message with the appropriate icon, timestamp, and content.
-  console.log(`${levels[level]} ${dayjs().format(DATEHOUR_FORMAT)} - ${message}`);
+  if (!logLevels.includes(level)) {
+    console.warn(`Invalid log level: "${level}". Defaulting to "info".`);
+    level = "info";
+  }
+
+  const timestamp = dayjs().format(DATEHOUR_FORMAT);
+
+  messages.forEach((message) => {
+    console.log(`${iconsLevels[level]} ${timestamp} - ${message}`);
+  });
 };
 
 // Export the log function for use in other modules.
