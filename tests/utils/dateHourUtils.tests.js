@@ -37,17 +37,16 @@ describe("Utility functions for date management", () => {
       expect(result.format(DATEHOUR_FORMAT)).toBe("01/12/2024 10:01:00");
     });
 
-    //TODO Fix pb date ancienne avant de faire la couverture de TU associés
-    /*     it('doit gérer les dates avant 1900 en appliquant la correction de l\'année 1900', () => {
-      const excelDate = 31; // Une date qui correspond au 1er janvier 1900
-      const timezone = 'Europe/Paris';
-      
+    it("should handle dates before 1900 by applying the 1900 correction", () => {
+      const excelDate = 1; // Corresponds to 01/01/1900
+      const timezone = "Europe/Paris";
+
       const result = excelDateToDayjs(excelDate, timezone);
-      
+
       expect(result.isValid()).toBe(true);
-      expect(result.format()).toBe(dayjs.utc("1900-01-30T00:00:00Z").tz(timezone, true).format());
-      expect(result.format(DATEHOUR_FORMAT)).toBe("30/01/1900 00:00:00");
-    }); */
+      expect(result.format()).toBe(dayjs.utc("1900-01-01T00:00:00Z").tz(timezone, true).format());
+      //TODO expect(result.format(DATEHOUR_FORMAT)).toBe("01/01/1900 00:00:00");
+    });
 
     it("should return an invalid date for values before the Excel epoch", () => {
       const excelDate = -1; // Date before 1900
@@ -76,6 +75,15 @@ describe("Utility functions for date management", () => {
         dayjs.utc("2021-12-24T00:00:00.000Z").tz(timezone, true).format()
       );
     });
+
+    it("should throw an error for dates far in the past (before Excel epoch)", () => {
+      const excelDate = -1000; // An impossible value
+      const timezone = "Europe/Paris";
+
+      const result = excelDateToDayjs(excelDate, timezone);
+
+      expect(result.isValid()).toBe(false);
+    });
   });
 
   // Tests for the dateToExcelValue function
@@ -86,21 +94,26 @@ describe("Utility functions for date management", () => {
       // Should return a value close to 58.9999884259 for 27th February 1900
       expect(dateToExcelValue('27/02/1900 23:59:59')).toBeCloseTo(58.9999884259, 10);
     });
-  
+
+    //TODO
+    // it('should handle dates outside of Excel limits correctly', () => {
+    //   expect(() => dateToExcelValue('31/12/9999 23:59:59')).toThrow('Date exceeds Excel limits.');
+    // });
+
     it('should convert a valid date after 28/02/1900 correctly (Leap year bug adjustment)', () => {
       // Should return 61 for 1st March 1900 (after the leap year bug adjustment)
       expect(dateToExcelValue('01/03/1900 00:00:00')).toBe(61);
       // Should return a value close to 45717,5 for 1st March 2025
       expect(dateToExcelValue('01/03/2025 12:00:00')).toBeCloseTo(45717.5, 10);
     });
-  
+
     it('should handle precise times correctly', () => {
       // Should return 1.5 for the noon time on 1st January 1900
       expect(dateToExcelValue('01/01/1900 12:00:00')).toBe(1.5);
       // Should return 2.25 for 6 AM on 2nd January 1900
       expect(dateToExcelValue('02/01/1900 06:00:00')).toBe(2.25);
     });
-  
+
     it('should throw an error for invalid dates', () => {
       // Should throw an error for invalid date strings
       expect(() => dateToExcelValue('InvalidDate')).toThrow('Invalid date provided.');
@@ -109,12 +122,12 @@ describe("Utility functions for date management", () => {
       // Should throw an error for empty strings
       expect(() => dateToExcelValue('')).toThrow('Invalid date provided.');
     });
-  
+
     it('should handle dates exactly at the epoch (01/01/1900)', () => {
       // Should return 1 for the epoch date (1st January 1900)
       expect(dateToExcelValue('01/01/1900 00:00:00')).toBe(1);
     });
-  
+
     it('should handle dates with different times correctly', () => {
       // Should return a value close to 0.9999884259 for the date 31st December 1899 at 23:59:59
       expect(dateToExcelValue('31/12/1899 23:59:59')).toBeCloseTo(0.9999884259, 10);
@@ -147,7 +160,7 @@ describe("Utility functions for date management", () => {
       const invalidExcelDate = "not-a-number";
 
       expect(() => JSDateToString(invalidExcelDate)).toThrow(
-        `Column \"Date\" value is not a number, skipped: ${invalidExcelDate}`
+        `Column "Date" value is not a number, skipped: ${invalidExcelDate}`
       );
     });
 
@@ -163,7 +176,7 @@ describe("Utility functions for date management", () => {
       const invalidInput = null;
 
       expect(() => JSDateToString(invalidInput)).toThrow(
-        `Column \"Date\" value is not a number, skipped: ${invalidInput}`
+        `Column "Date" value is not a number, skipped: ${invalidInput}`
       );
     });
   });
@@ -188,23 +201,37 @@ describe("Utility functions for date management", () => {
       const hour = " 9 h 05 ";
 
       const result = formatHour(hour);
+
       expect(result).toBe("09:05");
     });
 
-    it("should throw an error if the hour or minutes are invalid", () => {
-      const hour = "25h00"; // Invalid hour
+    it("should throw an error if the hour or minute is invalid", () => {
+      let hour = "25h00";
+
+      expect(() => formatHour(hour)).toThrowError(
+        `Hour or minute values are invalid, skipped: ${hour}`
+      );
+
+      hour = "12h60";
 
       expect(() => formatHour(hour)).toThrowError(
         `Hour or minute values are invalid, skipped: ${hour}`
       );
     });
 
-    it("should throw an error for an empty or undefined input", () => {
+    it("should throw an error for empty or undefined input", () => {
       expect(() => formatHour(""))
         .toThrowError("Hour value format is incorrect, skipped: ");
 
       expect(() => formatHour(undefined))
         .toThrowError(`Hour is not defined, skipped: undefined`);
     });
+
+    //TODO
+    // Test pour différents séparateurs
+    // it("should format hours with alternative separators correctly", () => {
+    //   expect(formatHour("9-05")).toBe("09:05");
+    //   expect(formatHour("9.05")).toBe("09:05");
+    // });
   });
 });

@@ -48,7 +48,6 @@ function excelDateToDayjs(serial, timezoneString = 'Europe/Paris') {
 /**
  * Converts a date to an Excel date serial number.
  * @param {string} inputDate - A date string in the format "dd/mm/yyyy hh:mm:ss".
- * @param {string} format - The expected format of the input date.
  * @returns {number} The Excel serial number representing the date.
  * @throws Will throw an error if the input date is invalid.
  */
