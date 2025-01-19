@@ -1,6 +1,12 @@
 const { dayjs, DATEHOUR_FORMAT } = require("../config/dayjsConfig");
 
 /**
+ * Gets the current timestamp formatted according to the format "DD/MM/YYYY HH:mm:ss".
+ * @returns {string} The current date and time as a formatted string.
+ */
+const getCurrentTimestamp = () => dayjs().format(DATEHOUR_FORMAT);
+
+/**
  * Converts an Excel date serial number to a Dayjs date, applying a timezone.
  * @param {number} serial - The Excel serial number representing a date.
  * @param {string} [timezoneString='Europe/Paris'] - The timezone to apply.
@@ -55,7 +61,7 @@ function dateToExcelValue(inputDate) {
 
   // Validate input date
   if (!dayjsDate.isValid()) {
-    throw new Error('Invalid date provided. Ensure it matches the format "DD/MM/YYYY HH:mm:ss".');
+    throw new Error(`Invalid date provided. Ensure it matches the format "${DATEHOUR_FORMAT}".`);
   }
 
   // Convert to a native JavaScript Date in UTC
@@ -130,6 +136,7 @@ function formatHour(heure) {
 }
 
 module.exports = {
+  getCurrentTimestamp,
   excelDateToDayjs,
   dateToExcelValue,
   JSDateToString,
