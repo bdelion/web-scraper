@@ -1,5 +1,5 @@
 // Import necessary modules and constants.
-const { dayjs, DATEHOUR_FORMAT } = require("../config/dayjsConfig");
+const { getCurrentTimestamp } = require('../../src/utils/dateHourUtils');
 
 // List of valid log levels
 const logLevels = ["info", "warn", "error", "debug"];
@@ -23,7 +23,7 @@ const log = (messages, level = "info") => {
     level = "info";
   }
 
-  const timestamp = dayjs().format(DATEHOUR_FORMAT);
+  const timestamp = getCurrentTimestamp();
 
   messages.forEach((message) => {
     console.log(`${iconsLevels[level]} ${timestamp} - ${message}`);
