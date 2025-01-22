@@ -37,7 +37,7 @@ const { log } = require("./utils/logUtils");
   let previousEndDate = 0;
 
   for (const entry of inputData) {
-    if (!((entry.end - entry.begin) === 0)) {
+    if ((entry.end - entry.begin) !== 0) {
       // Push the result between two dates/times into the array
       log(`Fetching weather data for the station between ${JSDateToString(entry.begin)} and ${JSDateToString(entry.end)}`, "warn");
       weatherData.push(
@@ -49,12 +49,10 @@ const { log } = require("./utils/logUtils");
         )
       );
       previousEndDate = entry.end;
+    } else if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
+      weatherData.push(weatherData[weatherData.length - 1]);
     } else {
-      if (((previousEndDate - entry.begin) === 0) && ((entry.end - entry.begin) === 0)) {
-        weatherData.push(weatherData[weatherData.length - 1]);
-      } else {
-        throw new ScrapingError(`There is a problem with date ranges: ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
-      }
+      throw new ScrapingError(`There is a problem with date ranges: ${previousEndDate.format(DATEHOUR_FORMAT)} / ${entry.begin.format(DATEHOUR_FORMAT)} / ${entry.end.format(DATEHOUR_FORMAT)}`);
     }
   }
 
