@@ -9,16 +9,45 @@ const { writeExcel, readExcel } = require("./utils/excelUtils");
 const { DATEHOUR_FORMAT } = require("./config/dayjsConfig");
 const { formatData, performIdStationScraping, getWeatherDataBetween2Dates } = require("./scrapers/weatherScraper");
 const { log } = require("./utils/logUtils");
+const path = require("path");
+const yargs = require("yargs");
 
 // === MAIN SCRIPT ===
 
-(async () => {
-  log("Script starting", "info");
+const argv = yargs
+  .option('excelFile', {
+    alias: 'e',
+    description: 'Path to the input Excel file',
+    type: 'string',
+    demandOption: true // Make this parameter mandatory
+  })
+  .option('sheetName', {
+    alias: 's',
+    description: 'Name of the sheet to read',
+    type: 'string',
+    demandOption: true // Make this parameter mandatory
+  })
+  .option('firstRow', {
+    alias: 'r',
+    description: 'Row to start reading from',
+    type: 'number',
+    demandOption: true // Make this parameter mandatory
+  })
+  .option('weatherStationName', {
+    alias: 'w',
+    description: 'Name of the weather station',
+    type: 'string',
+    demandOption: true // Make this parameter mandatory
+  })
+  .alias('h', 'help') // Add alias for --help
+  .alias('v', 'version') // Add alias for --version
+  .help()
+  .argv;
 
-  const excelFile = "assets/InputData.xlsx";
-  const sheetName = "Suivi Conso New";
-  const firstRow = 2;
-  const weatherStationName = "Bressuire";
+(async () => {
+  const { excelFile, sheetName, firstRow, weatherStationName } = argv;
+  
+  log("Script starting", "info");
 
   // Read the Excel file
   log(`Reading Excel file: ${excelFile}`, "info");
@@ -57,8 +86,12 @@ const { log } = require("./utils/logUtils");
   }
 
   // Save the results
-  log(`Saving the results to the Excel file`, "info");
-  writeExcel(weatherData, "assets/OutputData.xlsx");
+  // Get the directory of the input file
+  const inputDir = path.dirname(path.resolve(excelFile));
+  // Save the results in the same directory as the input file
+  const outputFile = path.join(inputDir, 'OutputData.xlsx');
+  log(`Saving the results to: ${outputFile}`, "info");
+  writeExcel(weatherData, outputFile);
 
   log("Script finished", "info");
 })().catch((err) => console.error(err));
