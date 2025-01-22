@@ -265,13 +265,13 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   }
 
   // Log the start, end, and iteration end dates
-  log(`Start Date: ${dayjsStartDate}`, "info");
-  log(`End Date: ${dayjsEndDate}`, "info");
-  log(`End Iteration Date: ${dateEndIteration}`, "info");
+  log(`Start Date: ${dayjsStartDate.format(DATEHOUR_FORMAT)}`, "info");
+  log(`End Date: ${dayjsEndDate.format(DATEHOUR_FORMAT)}`, "info");
+  log(`End Iteration Date: ${dateEndIteration.format(DATEHOUR_FORMAT)}`, "info");
 
   const weatherData = []; // Array to hold the collected weather data
   while (dateIteration.isBefore(dateEndIteration)) {
-    log(`Iteration Date: ${dateIteration}`, "info");
+    log(`Iteration Date: ${dateIteration.format(DATE_FORMAT)}`, "info");
 
     // Fetch weather data for the current day
     const dayWeather = await performObservationScraping(weatherStationId, dateIteration);
@@ -294,7 +294,7 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   // Extract temperatures from the valid data
   const temperatures = validData.map((data) => Number(data.temperature));
 
-  log(`Temperatures between ${dayjsStartDate} and ${dayjsEndDate}: ${temperatures}`, "info");
+  log(`Temperatures between ${dayjsStartDate.format(DATEHOUR_FORMAT)} and ${dayjsEndDate.format(DATEHOUR_FORMAT)}: ${temperatures}`, "info");
 
   // Return an object with the weather summary
   return {
