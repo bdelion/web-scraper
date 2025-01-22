@@ -1,6 +1,8 @@
 // === MODULES IMPORTED ===
 const XLSX = require("xlsx");
 const { DATEHOUR_FORMAT } = require("../config/dayjsConfig");
+const { ScrapingError } = require("../errors/customErrors");
+const fs = require("fs");
 
 /**
  * Reads data from a specified sheet in an Excel file, starting from a specific row.
@@ -15,6 +17,10 @@ const { DATEHOUR_FORMAT } = require("../config/dayjsConfig");
  * @returns {Array} - The data from the specified sheet starting from the `firstRow`, formatted as an array of JSON objects.
  */
 function readExcel(inputFile, sheetName, firstRow) {
+  // Ensure the Excel file exists
+  if (!fs.existsSync(inputFile)) {
+    throw new ScrapingError(`The file "${inputFile}" does not exist.`);
+  }
   // Read the Excel file into a workbook object
   const workbook = XLSX.readFile(inputFile);
 
