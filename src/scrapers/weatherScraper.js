@@ -342,6 +342,7 @@ async function fetchWeatherDataByDateRanges(entries, weatherStationId) {
 module.exports = {
   formatData,
   cleanTemperature,
+  extractWeatherDataRow,
   performIdStationScraping,
   performObservationScraping,
   getWeatherDataBetween2Dates,

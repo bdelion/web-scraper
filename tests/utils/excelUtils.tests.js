@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
 
+// Tests for the writeExcel function
 describe("writeExcel", () => {
   const outputFile = path.join(__dirname, "outputFile.xlsx");
 
@@ -64,6 +65,7 @@ describe("writeExcel", () => {
 
 const testFile = path.join(__dirname, "testFile.xlsx");
 
+// Tests for the readExcel function
 describe("readExcel", () => {
   beforeAll(() => {
     // Create a test Excel file with appropriate headers
@@ -98,7 +100,11 @@ describe("readExcel", () => {
   });
 
   it("should throw an error if the file does not exist", () => {
-    expect(() => readExcel("nonexistentfile.xlsx", "Sheet1", 0)).toThrowError();
+    expect(() => readExcel("nonexistentfile.xlsx", "Sheet1", 0)).toThrow(`The file "nonexistentfile.xlsx" does not exist.`);
+  });
+
+  it("should throw an error if row is lower to 0", () => {
+    expect(() => readExcel(testFile, "Sheet1", -1)).toThrow('The first row must be greater than or equal to 0.');
   });
 
   //TODO ?

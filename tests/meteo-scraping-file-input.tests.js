@@ -1,6 +1,6 @@
 const assert = require("assert");
-const { formatData, performIdStationScraping, getWeatherDataBetween2Dates } = require("../src/scrapers/weatherScraper");
-const { JSDateToString } = require("../src/utils/dateHourUtils");
+const { formatData, performIdStationScraping } = require("../src/scrapers/weatherScraper");
+const { JSDateToString, dateToExcelValue } = require("../src/utils/dateHourUtils");
 const { ScrapingError } = require("../src/errors/customErrors");
 
 // Mocked dependencies
@@ -25,6 +25,13 @@ describe("Weather Script Tests", () => {
         { begin: 45658.25, end: 45658.5 },
       ];
 
+      const output = formatData(input);
+      assert.deepStrictEqual(output, expectedOutput);
+    });
+
+    it("should handle empty Excel data gracefully", () => {
+      const input = [];
+      const expectedOutput = [];
       const output = formatData(input);
       assert.deepStrictEqual(output, expectedOutput);
     });
@@ -83,6 +90,22 @@ describe("Weather Script Tests", () => {
     });
   });
 
+  describe("dateToExcelValue", () => {
+    it("should convert a date string to an Excel date value", () => {
+      const date = "01/01/2025 00:00:00";
+      const expectedOutput = 45658;
+      const result = dateToExcelValue(date);
+      assert.strictEqual(result, expectedOutput);
+    });
+
+    it("should throw an error for invalid date format", () => {
+      const invalidDate = "invalid-date";
+      assert.throws(() => {
+        dateToExcelValue(invalidDate);
+      }, /Error: Invalid date provided. Ensure it matches the format "DD\/MM\/YYYY HH:mm:ss"./);
+    });
+  });
+
   describe("Error Handling", () => {
     it("should throw ScrapingError for invalid date ranges", () => {
       const previousEndDate = 45658.25;
@@ -117,6 +140,21 @@ describe("Weather Script Tests", () => {
       }
 
       assert.strictEqual(weatherData.length, 3);
+    });
+
+    it("should handle empty input data gracefully during processing", async () => {
+      const inputData = [];
+      const mockPerformIdStationScraping = async () => "12345";
+      const mockGetWeatherDataBetween2Dates = async () => [];
+
+      const weatherStationId = await mockPerformIdStationScraping("Bressuire");
+
+      const weatherData = [];
+      for (const entry of inputData) {
+        weatherData.push(await mockGetWeatherDataBetween2Dates(weatherStationId, entry.begin, entry.end));
+      }
+
+      assert.strictEqual(weatherData.length, 0);
     });
   });
 });

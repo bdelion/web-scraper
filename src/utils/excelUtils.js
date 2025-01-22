@@ -21,7 +21,7 @@ function readExcel(inputFile, sheetName, firstRow) {
     throw new ScrapingError(`The file "${inputFile}" does not exist.`);
   }
   if (firstRow < 0) {
-    throw new ScrapingError("The first row must be greater than or equal to 1.");
+    throw new ScrapingError("The first row must be greater than or equal to 0.");
   }
 
   // Read the Excel file into a workbook object
