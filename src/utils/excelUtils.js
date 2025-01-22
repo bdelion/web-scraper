@@ -17,10 +17,13 @@ const fs = require("fs");
  * @returns {Array} - The data from the specified sheet starting from the `firstRow`, formatted as an array of JSON objects.
  */
 function readExcel(inputFile, sheetName, firstRow) {
-  // Ensure the Excel file exists
   if (!fs.existsSync(inputFile)) {
     throw new ScrapingError(`The file "${inputFile}" does not exist.`);
   }
+  if (firstRow < 0) {
+    throw new ScrapingError("The first row must be greater than or equal to 1.");
+  }
+
   // Read the Excel file into a workbook object
   const workbook = XLSX.readFile(inputFile);
 
