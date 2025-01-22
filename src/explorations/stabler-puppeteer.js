@@ -8,6 +8,7 @@ async function scrapeDynamicContent(url) {
   await page.goto(url, { waitUntil: "networkidle2" });
 
   const data = await page.evaluate(() => {
+    // eslint-disable-next-line no-undef
     return document.querySelector("h1").innerText;
   });
 
