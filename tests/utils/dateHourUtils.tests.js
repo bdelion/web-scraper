@@ -28,7 +28,15 @@ describe("Utility functions for date management", () => {
       const excelDate = 45627.41736111111; // Corresponds to 2024-12-01 10:01
       const timezone = "Europe/Paris";
 
-      const result = excelDateToDayjs(excelDate, timezone);
+      let result = excelDateToDayjs(excelDate, timezone);
+
+      expect(result.isValid()).toBe(true);
+      expect(result.format()).toBe(
+        dayjs.utc("2024-12-01T10:01:00Z").tz(timezone, true).format()
+      );
+      expect(result.format(DATEHOUR_FORMAT)).toBe("01/12/2024 10:01:00");
+
+      result = excelDateToDayjs(excelDate);
 
       expect(result.isValid()).toBe(true);
       expect(result.format()).toBe(

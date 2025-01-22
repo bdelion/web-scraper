@@ -2,10 +2,14 @@
   "name": "web-scraper",
   "version": "1.0.0",
   "description": "Project create for testing web scraping",
-  "main": "index.js",
+  "main": "src/meteo-scraping-file-input.js",
   "scripts": {
+    "start": "node src/meteo-scraping-file-input.js",
     "lint": "eslint .",
     "test": "jest"
+  },
+  "bin": {
+    "web-scraper": "./src/meteo-scraping-file-input.js"
   },
   "repository": {
     "type": "git",

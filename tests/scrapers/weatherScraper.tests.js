@@ -1,5 +1,6 @@
 const axios = require("axios");
 const MockAdapter = require("axios-mock-adapter");
+const cheerio = require("cheerio");
 const fs = require("fs");
 const path = require("path");
 const { dayjs } = require("../../src/config/dayjsConfig");
@@ -158,6 +159,129 @@ describe("cleanTemperature", () => {
     expect(cleanTemperature("abc")).toBeNull();
     expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
   });
+
+  it("should return null for suspicious input and log error", async () => {
+    let temp = "-101";
+    let message = `Suspicious temperature value: ${temp}`;
+    let expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    expect(cleanTemperature(temp)).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+
+    temp = "101";
+    message = `Suspicious temperature value: ${temp}`;
+    expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    expect(cleanTemperature(temp)).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+});
+
+// Tests for the extractWeatherDataRow function
+describe('extractWeatherDataRow', () => {
+  let spyConsoleLog;
+
+  beforeEach(() => {
+    // Mock `getCurrentTimestamp` dynamiquement
+    jest.resetModules();
+    jest.doMock("../../src/utils/dateHourUtils", () => ({
+      getCurrentTimestamp: jest.fn().mockReturnValue(mockTimestamp),
+    }));
+
+    // Réimporter les dépendances avec le mock appliqué
+    extractWeatherDataRow = require("../../src/scrapers/weatherScraper").extractWeatherDataRow;
+
+    // Mock de console.log pour capturer les appels
+    spyConsoleLog = jest.spyOn(console, "log").mockImplementation();
+  });
+
+  afterEach(() => {
+    spyConsoleLog.mockRestore(); // Réinitialiser le mock de console.log
+    jest.resetModules(); // Réinitialiser tous les modules
+  });
+  
+  test('should extract valid weather data from a row', () => {
+    const row = '<tr><td>14</td><td>Some other data</td><td>22.5°C</td></tr>'; // Exemple de ligne valide
+    const $ = cheerio.load(row);
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toEqual({
+      heure: '14',
+      temperature: '22.5',
+    });
+  });
+
+  test('should return null when heure is invalid and log error', () => {
+    const row = '<tr><td></td><td>Some other data</td><td>22.5°C</td></tr>'; // Heure manquante
+    const $ = cheerio.load(row);
+    const message = 'Invalid data extracted from row: heure=, temperature=22.5';
+    const expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+
+  test('should return null when temperature is invalid and log error', () => {
+    const row = '<tr><td>14</td><td>Some other data</td><td>Not a number</td></tr>'; // Température invalide
+    const $ = cheerio.load(row);
+    const message = 'Invalid data extracted from row: heure=14, temperature=';
+    const expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+
+  test('should return null when temperature is empty and log error', () => {
+    const row = '<tr><td>14</td><td>Some other data</td><td></td></tr>'; // Température vide
+    const $ = cheerio.load(row);
+    const message = 'Invalid data extracted from row: heure=14, temperature=';
+    const expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+
+  test('should handle rows with unexpected formats', () => {
+    const row = '<tr><td>14</td><td>Some other data</td><td>$22.5</td></tr>'; // Température avec un symbole
+    const $ = cheerio.load(row);
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toEqual({
+      heure: '14',
+      temperature: '22.5', // Le symbole "$" doit être nettoyé
+    });
+  });
+
+  test('should extract weather data with extra spaces around data', () => {
+    const row = '<tr><td>  14 </td><td>Some other data</td><td>  22.5°C  </td></tr>'; // Données avec espaces supplémentaires
+    const $ = cheerio.load(row);
+
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toEqual({
+      heure: '14', // Les espaces sont enlevés
+      temperature: '22.5', // Les espaces et symboles sont nettoyés
+    });
+  });
+
+  test('should return null when row is empty and log error', () => {
+    const row = ''; // Ligne vide
+    const $ = cheerio.load(row);
+    const message = 'Invalid data extracted from row: heure=, temperature=';
+    const expectedOutput = `⚠️ ${mockTimestamp} - ${message}`;
+    
+    const result = extractWeatherDataRow(row, $);
+
+    expect(result).toBeNull();
+    expect(spyConsoleLog).toHaveBeenCalledWith(expectedOutput);
+  });
+
 });
 
 // Tests for the performIdStationScraping function
@@ -187,6 +311,14 @@ describe("performIdStationScraping", () => {
       .reply(200, "|");
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Station ID not found in the response");
+  });
+
+  it("should throw an error if the API response is not a number", async () => {
+    const stationName = "ValidStation";
+    mockAxios.onPost(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
+      .reply(200, "bob|");
+
+    await expect(performIdStationScraping(stationName)).rejects.toThrow("Station ID is not a number in the response");
   });
 
   it("should throw an error on network issues", async () => {
