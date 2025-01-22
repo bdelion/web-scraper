@@ -9,7 +9,6 @@ async function performScraping(date) {
   let month = momentDate.month();
   let year = momentDate.year();
   let url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=79049004&jour2=${day}&mois2=${month}&annee2=${year}&affint=1`;
-  const temperatureLabel = "Température";
   const heureLocaleLabel = "Heure\nlocale";
   // initializing the data structures that will contain the scraped data
   const dataMeteo = [];
@@ -24,6 +23,7 @@ async function performScraping(date) {
     await page.goto(url);
 
     data = await page.evaluate(() => {
+      // eslint-disable-next-line no-undef
       const table = document.querySelector("table:nth-child(3)");
       const rowsWithNumbers = [...table.rows].slice(0);
       const numbers = rowsWithNumbers.map((row) =>
@@ -31,7 +31,6 @@ async function performScraping(date) {
       );
       return numbers;
     });
-    const temperatureIndex = data[0].indexOf(temperatureLabel);
     const heureLocaleIndex = data[0].indexOf(heureLocaleLabel);
 
     data.forEach((line) => {
@@ -44,6 +43,7 @@ async function performScraping(date) {
           minute: line[heureLocaleIndex].split("h")[1],
           second: 0,
         });
+        console.log(time);
       }
     });
 

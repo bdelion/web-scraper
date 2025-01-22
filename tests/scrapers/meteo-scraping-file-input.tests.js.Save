@@ -1,0 +1,326 @@
+// script.test.js
+const {
+  cleanTemperature,
+  JSDateToString,
+  formatData,
+} = require("../src/meteo-scraping-file-input.js"); // Adjust the path to your script
+
+
+const {
+  performIdStationScraping,
+  performObservationScraping,
+} = require("../src/scrapers/weatherScraper.js"); // Adjust the path to your script
+const { ScrapingError } = require("../src/errors/customErrors.js");
+
+const dayjs = require("dayjs");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+const mockFs = require("mock-fs");
+const XLSX = require("xlsx");
+
+jest.mock("axios");
+
+// Tests pour cleanTemperature
+describe("Tests de nettoyage des températures", () => {
+  it("devrait convertir une chaîne valide en un nombre", () => {
+    expect(cleanTemperature("20.5°C")).toBe(20.5);
+    expect(cleanTemperature("25.0°C")).toBe(25.0);
+  });
+
+  it("devrait renvoyer null pour une température invalide", () => {
+    expect(cleanTemperature("abc°C")).toBeNull();
+    expect(cleanTemperature("abc")).toBeNull();
+    expect(cleanTemperature("")).toBeNull();
+    expect(cleanTemperature("N/A")).toBeNull();
+    expect(cleanTemperature(null)).toBeNull();
+  });
+});
+
+// Tests pour performIdStationScraping
+describe("Tests de la fonction performIdStationScraping", () => {
+  // Cas où le nom de la station météo est invalide
+  it("devrait lancer une erreur si weatherStationName n'est pas une chaîne valide", async () => {
+    await expect(performIdStationScraping(null)).rejects.toThrow(ScrapingError);
+    await expect(performIdStationScraping("")).rejects.toThrow(ScrapingError);
+    await expect(performIdStationScraping("   ")).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas où la réponse de l'API est invalide
+  it("devrait lancer une erreur si la réponse est vide ou mal formée", async () => {
+    axios.post.mockResolvedValue({ data: "" }); // Réponse vide
+
+    await expect(performIdStationScraping("StationName")).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  it("devrait lancer une erreur si la réponse ne contient pas un ID valide", async () => {
+    axios.post.mockResolvedValue({ data: "InvalidResponseFormat" });
+
+    await expect(performIdStationScraping("StationName")).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  it("devrait lancer une erreur si l'ID de la station n'est pas un nombre", async () => {
+    axios.post.mockResolvedValue({ data: "NonNumericID|SomeOtherData" });
+
+    await expect(performIdStationScraping("StationName")).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas où l'ID de la station est trouvé
+  it("devrait retourner l'ID de la station si la réponse est valide", async () => {
+    axios.post.mockResolvedValue({ data: "12345|SomeOtherData" });
+
+    const id = await performIdStationScraping("StationName");
+    expect(id).toBe("12345");
+  });
+
+  // Cas où la requête échoue (problème réseau)
+  it("devrait lancer une erreur si la requête échoue", async () => {
+    axios.post.mockRejectedValue(new Error("Network error"));
+
+    await expect(performIdStationScraping("StationName")).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas où l'ID est correctement récupéré
+  it("devrait retourner un ID de station valide pour un autre exemple", async () => {
+    axios.post.mockResolvedValue({ data: "67890|MoreData" });
+
+    const id = await performIdStationScraping("AnotherStation");
+    expect(id).toBe("67890");
+  });
+});
+
+require("jest-extended"); // Si vous utilisez jest-extended pour les assertions personnalisées
+
+// Fonction d'extension pour Jest afin de valider les objets Day.js
+expect.extend({
+  toBeDayjs(received) {
+    const pass = dayjs.isDayjs(received);
+    if (pass) {
+      return {
+        message: () => `expected ${received} not to be a valid Day.js object`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `expected ${received} to be a valid Day.js object`,
+        pass: false,
+      };
+    }
+  },
+});
+
+// Tests pour performObservationScraping
+describe("Tests de la fonction performObservationScraping", () => {
+  // Cas où le nom de la station météo est invalide
+  it("devrait lancer une erreur si weatherStationId est invalide", async () => {
+    await expect(performObservationScraping("", dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+    await expect(performObservationScraping(null, dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+    await expect(performObservationScraping("   ", dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas où la date est invalide
+  it("devrait lancer une erreur si la date est invalide", async () => {
+    await expect(
+      performObservationScraping("1234", "invalid_date")
+    ).rejects.toThrow(ScrapingError);
+    await expect(
+      performObservationScraping("1234", dayjs("invalid_date"))
+    ).rejects.toThrow(ScrapingError);
+    await expect(performObservationScraping("1234", null)).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas où la réponse HTTP réussie avec données météo valides
+  it("devrait récupérer et formater les données météo correctement", async () => {
+    const mockData = fs.readFileSync(
+      path.resolve(__dirname, "./mocks/mockWeatherData.html"),
+      "utf-8"
+    );
+
+    axios.get.mockResolvedValue({ status: 200, data: mockData });
+
+    const stationId = "1234";
+    const mockDate = dayjs("2024-12-14");
+
+    const result = await performObservationScraping(stationId, mockDate);
+
+    // Vérifiez les formats et les valeurs
+    expect(result).toEqual([
+      expect.objectContaining({
+        weatherStationId: stationId,
+        heure: "23:54",
+        temperature: 4.9,
+        dayjs: expect.toBeDayjs(), // Utilisation de l'assertion personnalisée
+        dayjsFormated: "14/12/2024 23:54:00",
+      }),
+      expect.objectContaining({
+        weatherStationId: stationId,
+        heure: "23:48",
+        temperature: 4.8,
+        dayjs: expect.toBeDayjs(), // Utilisation de l'assertion personnalisée
+        dayjsFormated: "14/12/2024 23:48:00",
+      }),
+    ]);
+  });
+
+  // Cas erreur de requête HTTP
+  it("devrait lancer une erreur si la requête HTTP échoue", async () => {
+    axios.get.mockRejectedValue(new Error("Network error"));
+
+    await expect(performObservationScraping("1234", dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas erreur de format de réponse (table non trouvée)
+  it("devrait lancer une erreur si la table n'est pas trouvée dans la réponse", async () => {
+    const mockData = "<html><body>No data table</body></html>";
+    axios.get.mockResolvedValue({ status: 200, data: mockData });
+
+    await expect(performObservationScraping("1234", dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Cas erreur de données météo manquantes ou mal formatées
+  it("devrait lancer une erreur si les données météo sont mal formatées", async () => {
+    const mockData = `
+      <table width="100%">
+        <tbody>
+          <tr><td>12:00</td><td>Not a number</td></tr>
+        </tbody>
+      </table>
+    `;
+    axios.get.mockResolvedValue({ status: 200, data: mockData });
+
+    await expect(performObservationScraping("1234", dayjs())).rejects.toThrow(
+      ScrapingError
+    );
+  });
+
+  // Tests de la gestion des erreurs personnalisées (ScrapingError)
+  it("devrait lancer une erreur ScrapingError pour une requête invalide", async () => {
+    axios.get.mockResolvedValue({ data: "" }); // Réponse vide
+
+    await expect(
+      performObservationScraping("1234", dayjs("2025-01-05"))
+    ).rejects.toThrowError(ScrapingError);
+  });
+});
+
+// Tests pour formatData
+describe("Tests unitaires pour la fonction formatData", () => {
+  // Test 1 : Vérifie que la fonction lève une erreur si l'entrée n'est pas un tableau
+  test("devrait lever une erreur si l'entrée n'est pas un tableau", () => {
+    const input = { Date: 1, Min: 10, Max: 20 };
+    expect(() => formatData(input)).toThrowError(
+      new ScrapingError("L'entrée doit être un tableau.", { jsonArray: input })
+    );
+  });
+
+  // Test 2 : Vérifie que la fonction lève une erreur si une entrée manque la propriété "Date"
+  test('devrait lever une erreur si une entrée n\'a pas de propriété "Date"', () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Min: 15, Max: 25 }, // Manque la propriété "Date"
+      { Date: 10, Min: 20, Max: 30 },
+    ];
+
+    expect(() => formatData(input)).toThrowError(
+      new ScrapingError(
+        "Date invalide ou manquante dans l'entrée à l'index 1.",
+        { entry: input[1], index: 1 }
+      )
+    );
+  });
+
+  // Test 3 : Vérifie que la fonction lève une erreur si une date est inférieure à la précédente
+  test("devrait lever une erreur si une date est inférieure à la précédente", () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: 15, Max: 25 },
+      { Date: 3, Min: 20, Max: 30 }, // Date inférieure à 5
+    ];
+
+    let dateBegin = JSDateToString(5);
+    let dateEnd = JSDateToString(3);
+
+    try {
+      formatData(input);
+    } catch (error) {
+      // Vérification que l'erreur est de type ScrapingError
+      expect(error).toBeInstanceOf(ScrapingError);
+
+      // Vérification du message d'erreur
+      expect(error.message).toMatch(
+        `La valeur de la date en cours (${dateEnd}) à l'index 2 est inférieure à la date précédente (${dateBegin}).`
+      );
+
+      // Vérification des détails
+      expect(error.details).toEqual({
+        entry: input[2],
+        previousDate: 5,
+        index: 2,
+      });
+    }
+  });
+
+  // Test 4 : Vérifie que les plages de dates sont correctement générées quand Min et Max sont indéfinis
+  test("devrait créer des plages de dates lorsque Min et Max sont indéfinis", () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: undefined, Max: undefined },
+      { Date: 10, Min: undefined, Max: undefined },
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([
+      { begin: 1, end: 5 },
+      { begin: 5, end: 10 },
+    ]);
+  });
+
+  // Test 5 : Vérifie que le tableau retourné est vide si Min et Max sont toujours définis
+  test("ne doit pas créer de plages si Min et Max sont définis pour chaque entrée", () => {
+    const input = [
+      { Date: 1, Min: 10, Max: 20 },
+      { Date: 5, Min: 15, Max: 25 },
+      { Date: 10, Min: 20, Max: 30 },
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([]); // Aucun range n'est créé si Min et Max sont définis
+  });
+
+  // Test 6 : Vérifie que la fonction fonctionne correctement lorsque les données sont valides
+  test("devrait renvoyer les bonnes plages de dates lorsque les données sont valides", () => {
+    const input = [
+      { Date: 1, Min: undefined, Max: undefined },
+      { Date: 5, Min: undefined, Max: undefined },
+      { Date: 10, Min: undefined, Max: undefined },
+    ];
+
+    const result = formatData(input);
+    expect(result).toEqual([
+      { begin: 1, end: 5 },
+      { begin: 5, end: 10 },
+    ]);
+  });
+});
