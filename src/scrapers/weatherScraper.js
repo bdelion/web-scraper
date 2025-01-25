@@ -308,10 +308,43 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   };
 }
 
+/**
+ * Process entries sequentially to fetch weather data.
+ * @param {Array} entries - Array of input data entries with start and end dates.
+ * @param {string} weatherStationId - ID of the weather station.
+ * @returns {Array} Array of weather data results.
+ */
+async function fetchWeatherDataByDateRanges(entries, weatherStationId) {
+  const weatherData = [];
+  let previousEndDate = 0;
+
+  for (const entry of entries) {
+    if (entry.end - entry.begin !== 0) {
+      log(`Fetching weather data for the station between ${JSDateToString(entry.begin)} and ${JSDateToString(entry.end)}`, "warn");
+      try {
+        const data = await getWeatherDataBetween2Dates(weatherStationId, entry.begin, entry.end);
+        weatherData.push(data);
+      } catch (err) {
+        log(`Error fetching weather data: ${err.message}`, "error");
+        throw err;
+      }
+      previousEndDate = entry.end;
+    } else if (entry.begin === previousEndDate) {
+      weatherData.push(weatherData[weatherData.length - 1]); // Reuse the last data
+    } else {
+      throw new ScrapingError(`Invalid date ranges: ${JSDateToString(entry.begin)} / ${JSDateToString(entry.end)}`);
+    }
+  }
+
+  return weatherData;
+}
+
 module.exports = {
   formatData,
   cleanTemperature,
+  extractWeatherDataRow,
   performIdStationScraping,
   performObservationScraping,
   getWeatherDataBetween2Dates,
+  fetchWeatherDataByDateRanges,
 };

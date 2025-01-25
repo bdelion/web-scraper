@@ -2,10 +2,14 @@
   "name": "web-scraper",
   "version": "1.0.0",
   "description": "Project create for testing web scraping",
-  "main": "index.js",
+  "main": "src/meteo-scraping-file-input.js",
   "scripts": {
+    "start": "node src/meteo-scraping-file-input.js",
     "lint": "eslint .",
     "test": "jest"
+  },
+  "bin": {
+    "web-scraper": "./src/meteo-scraping-file-input.js"
   },
   "repository": {
     "type": "git",
@@ -28,7 +32,8 @@
     "dayjs": "^1.11.13",
     "puppeteer": "^23.11.1",
     "read-excel-file": "^5.8.6",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
