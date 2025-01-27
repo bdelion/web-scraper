@@ -30,7 +30,7 @@
     "cheerio": "^1.0.0",
     "crawler": "^2.0.1",
     "dayjs": "^1.11.13",
-    "puppeteer": "^23.11.1",
+    "puppeteer": "^24.1.1",
     "read-excel-file": "^5.8.6",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yargs": "^17.7.2"
