@@ -340,6 +340,8 @@ async function performIdStationScraping(weatherStationName) {
   const encodedStationName = encodeURIComponent(weatherStationName);
   const url = `${BASE_URL}${encodedStationName}`;
 
+  console.log("performIdStationScraping > url", url);
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const response = await axios.get(url, {
