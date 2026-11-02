@@ -1,0 +1,46 @@
+{
+	"folders": [
+		{
+			"path": "../meteo-scraping"
+		},
+		{
+			"path": "../basic-weather-app"
+		},
+		{
+			"path": "../monolithic-weather-app"
+		},
+		{
+			"path": "../java-parent"
+		},
+		{
+			"path": "../simple-java8-validator"
+		},
+		{
+			"path": "../meteociel-scraping"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../weather-harvest"
+		},
+		{
+			"path": "../../../210 - Enfants/Zoé/2024-2025 UCO/miliamatcha/monmiliamatcha-v2"
+		},
+		{
+			"path": "../../../210 - Enfants/Zoé/2024-2025 UCO/miliamatcha/monmiliamatcha-v1"
+		},
+		{
+			"path": "../../../210 - Enfants/Zoé/2024-2025 UCO/miliamatcha/monmiliamatcha-v3"
+		},
+		{
+			"path": "../../../210 - Enfants/Zoé/2024-2025 UCO/miliamatcha/miliamatcha.com"
+		},
+		{
+			"path": "../lic3-website"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "meteo-scraping"
+	}
+}

@@ -60,6 +60,10 @@ Les éléments suivants doivent être installés :
 
 :construction: TO DO
 
+```bash
+node src\meteo-scraping-file-input.js processExcel --excelFile "D:\\Electricité-Relevés.xlsx" --sheetName "Suivi Conso New" --firstRow 2 --weatherStationName "Paris"
+```
+
 ## :construction_worker: Fabriqué avec
 
 - [Visual Studio Code] - Editeur de code source.
