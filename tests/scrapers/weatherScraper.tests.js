@@ -607,4 +607,17 @@ describe("getWeatherDataBetween2Dates", () => {
     
     await expect(getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)).rejects.toThrow("Table not found on the page");
   });
+
+  it("should reject a range when all extracted temperatures are invalid", async () => {
+    mockAxios.onGet(/https:\/\/www\.meteociel\.fr\/temps-reel\/obs_villes\.php.*/)
+      .reply(200, `
+        <table width="100%"><tbody>
+          <tr><td>Heure locale</td><td>Visi</td><td>Température</td></tr>
+          <tr><td>00h00</td><td></td><td>999</td></tr>
+        </tbody></table>
+      `);
+
+    await expect(getWeatherDataBetween2Dates("12345", 44561, 44562))
+      .rejects.toThrow("No valid temperature data found for the requested date range");
+  });
 });

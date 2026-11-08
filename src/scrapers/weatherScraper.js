@@ -577,14 +577,23 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   // Filter out any invalid or out-of-range weather data
   const validData = weatherData.filter(
     (data) =>
-      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) && 
-       (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate)))
+      ((data.dayjs.isSame(dayjsStartDate) || data.dayjs.isAfter(dayjsStartDate)) &&
+       (data.dayjs.isSame(dayjsEndDate) || data.dayjs.isBefore(dayjsEndDate))) &&
+      Number.isFinite(data.temperature)
   );
 
   // Extract temperatures from the valid data
   const temperatures = validData.map((data) => Number(data.temperature));
 
   log(`Temperatures between ${dayjsStartDate.format(DATEHOUR_FORMAT)} and ${dayjsEndDate.format(DATEHOUR_FORMAT)}: ${temperatures}`, "info");
+
+  if (temperatures.length === 0) {
+    throw new ScrapingError("No valid temperature data found for the requested date range", {
+      weatherStationId,
+      startDate: dayjsStartDate.toDate(),
+      endDate: dayjsEndDate.toDate()
+    });
+  }
 
   // Return an object with the weather summary
   return {
