@@ -1,11 +1,14 @@
+require("../config/env");
+
 // Import necessary modules and constants.
 const { getCurrentTimestamp } = require('../../src/utils/dateHourUtils');
 
 // List of valid log levels
-const logLevels = ["info", "warn", "error", "debug"];
+const logLevels = ["info", "warn", "error", "debug", "always"];
+const logLevelPriority = { debug: 10, info: 20, warn: 30, error: 40 };
 
 // Define icons for each log level
-const iconsLevels = { info: "ℹ️", warn: "⚠️", error: "❌", debug: "🐞" };
+const iconsLevels = { info: "ℹ️", warn: "⚠️", error: "❌", debug: "🐞", always: "ℹ️" };
 
 /**
  * Logs messages to the console with a timestamp and severity level.
@@ -22,6 +25,10 @@ const log = (messages, level = "info") => {
     console.warn(`Invalid log level: "${level}". Defaulting to "info".`);
     level = "info";
   }
+
+  const configuredLevel = String(process.env.LOG_LEVEL || "info").trim().toLowerCase();
+  const minimumPriority = logLevelPriority[configuredLevel] ?? logLevelPriority.info;
+  if (level !== "always" && logLevelPriority[level] < minimumPriority) return;
 
   const timestamp = getCurrentTimestamp();
 
