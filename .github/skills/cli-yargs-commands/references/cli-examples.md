@@ -161,7 +161,7 @@ describe("CLI Commands", () => {
     const { stdout, stderr } = await execPromise(
       'npm start processExcel --excelFile "test.xlsx" --sheetName "Sheet1" --firstRow 2 --weatherStationName "Test"'
     );
-    
+
     expect(stderr).toEqual("");
     expect(stdout).toContain("Processing");
   });

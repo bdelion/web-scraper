@@ -209,12 +209,12 @@ $failureCount = 0
 
 foreach ($item in $files) {
     Write-Host "Processing $($item.file)..." -ForegroundColor Cyan
-    
+
     # Validate
     npm start validateExcel `
       --excelFile $item.file `
       --sheetName $item.sheet
-    
+
     if ($LASTEXITCODE -eq 0) {
         # Process
         npm start processExcel `
@@ -223,7 +223,7 @@ foreach ($item in $files) {
           --firstRow 2 `
           --weatherStationName $item.station `
           --outputFile $item.output
-        
+
         if ($LASTEXITCODE -eq 0) {
             Write-Host "✓ Success" -ForegroundColor Green
             $successCount++
@@ -235,7 +235,7 @@ foreach ($item in $files) {
         Write-Host "✗ Validation failed" -ForegroundColor Red
         $failureCount++
     }
-    
+
     Write-Host ""
 }
 
@@ -271,23 +271,23 @@ function Invoke-WithRetry {
         [int]$MaxRetries = 3,
         [int]$DelayMs = 1000
     )
-    
+
     for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
         Write-Host "Attempt $attempt/$MaxRetries..."
-        
+
         & $ScriptBlock
-        
+
         if ($LASTEXITCODE -eq 0) {
             return 0
         }
-        
+
         if ($attempt -lt $MaxRetries) {
             $delay = $DelayMs * [Math]::Pow(2, $attempt - 1)
             Write-Host "Retrying in ${delay}ms..."
             Start-Sleep -Milliseconds $delay
         }
     }
-    
+
     return 1
 }
 
@@ -338,7 +338,7 @@ Time: $(Get-Date)
 
 Please review the logs for details.
 "@
-    
+
     Send-MailMessage `
       -SmtpServer $smtpServer `
       -Port $smtpPort `
@@ -396,11 +396,11 @@ describe("validateExcel command", () => {
       { Date: 45658, Min: 10, Max: 20 },
       { Date: 45659, Min: 11, Max: 21 }
     ];
-    
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    
+
     mockFs({
       "data/": {
         "valid.xlsx": XLSX.write(wb, { type: 'buffer' })
@@ -423,7 +423,7 @@ describe("validateExcel command", () => {
       { Min: 10, Max: 20 },  // Missing Date
       { Date: 45659, Min: 11, Max: 21 }
     ];
-    
+
     const hasMissingDate = invalidData.some(row => !row.Date);
     expect(hasMissingDate).toBe(true);
   });
@@ -432,7 +432,7 @@ describe("validateExcel command", () => {
     const invalidData = [
       { Date: "2025-01-01", Min: 10, Max: 20 },  // String instead of number
     ];
-    
+
     const hasNonNumericDate = invalidData.some(row => typeof row.Date !== 'number');
     expect(hasNonNumericDate).toBe(true);
   });

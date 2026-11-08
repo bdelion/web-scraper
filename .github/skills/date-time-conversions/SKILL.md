@@ -243,7 +243,7 @@ const { dayjs, DATE_FORMAT } = require("./config/dayjsConfig");
 
 function formatExcelDateForDisplay(excelSerial) {
   const dayjsDate = excelDateToDayjs(excelSerial);
-  
+
   // Get relative time (e.g., "today", "yesterday")
   if (dayjsDate.isSame(dayjs(), 'day')) {
     return "Aujourd'hui " + dayjsDate.format("HH:mm");

@@ -34,7 +34,7 @@ it("should mock successful GET request", async () => {
   mock.onGet("https://api.example.com/weather/123").reply(200, mockResponse);
 
   const response = await axios.get("https://api.example.com/weather/123");
-  
+
   expect(response.data.id).toBe(123);
   expect(response.data.temperature).toBe(20.5);
 });
@@ -48,7 +48,7 @@ it("should mock requests matching pattern", async () => {
 
   const response1 = await axios.get("/weather/1");
   const response2 = await axios.get("/weather/999");
-  
+
   expect(response1.data.temp).toBe(20);
   expect(response2.data.temp).toBe(20);
 });
@@ -65,7 +65,7 @@ it("should match query parameters", async () => {
   const response = await axios.get("/search", {
     params: { q: "Paris", limit: 10 }
   });
-  
+
   expect(response.data.results).toEqual([]);
 });
 ```
@@ -175,7 +175,7 @@ it("should use handler function for dynamic responses", async () => {
   mock.onGet("/data").reply((config) => {
     // Access request details
     const query = config.params.search;
-    
+
     if (query === "valid") {
       return [200, { found: true }];
     } else {
@@ -286,7 +286,7 @@ it("should write file", () => {
   });
 
   fs.writeFileSync("output/result.txt", "success");
-  
+
   expect(fs.existsSync("output/result.txt")).toBe(true);
   const content = fs.readFileSync("output/result.txt", "utf8");
   expect(content).toBe("success");
@@ -325,7 +325,7 @@ describe("Fetch and Save Pipeline", () => {
   it("should fetch data and save to file", async () => {
     // Fetch data
     const response = await axios.get("/api/weather");
-    
+
     // Save to file
     fs.writeFileSync(
       "output/weather.json",
@@ -389,7 +389,7 @@ it("should mock POST request", async () => {
 ```javascript
 it("should retry on failure then succeed", async () => {
   let attempts = 0;
-  
+
   mock.onGet("/retry").reply(() => {
     attempts++;
     if (attempts < 3) {

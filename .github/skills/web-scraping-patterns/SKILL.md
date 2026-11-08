@@ -68,15 +68,15 @@ See [Scraper Reference](./references/scraper-reference.md) for code examples.
        const response = await axios.get(`${BASE_URL}?id=${stationId}`, {
          headers: { "User-Agent": USER_AGENT }
        });
-       
+
        // Parse response
        const data = parseResponse(response.data);
        return data;
      } catch (error) {
-       throw new ScrapingError("Failed to fetch weather data", { 
-         stationId, 
-         dateRange, 
-         originalError: error.message 
+       throw new ScrapingError("Failed to fetch weather data", {
+         stationId,
+         dateRange,
+         originalError: error.message
        });
      }
    }
@@ -135,14 +135,14 @@ async function fetchWithPuppeteer(url) {
    ```javascript
    const MockAdapter = require("axios-mock-adapter");
    const mock = new MockAdapter(axios);
-   
+
    describe("weatherScraper", () => {
      it("should parse weather data correctly", async () => {
        mock.onGet(/meteociel/).reply(200, '<html>...</html>');
        const result = await fetchWeatherData(123);
        expect(result).toHaveProperty("temperature");
      });
-     
+
      it("should throw ScrapingError on network failure", async () => {
        mock.onGet(/meteociel/).networkError();
        await expect(fetchWeatherData(123)).rejects.toThrow(ScrapingError);

@@ -136,7 +136,7 @@ XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'MyCustomSheet');
 **Output from readExcel()**:
 ```javascript
 [
-  { 
+  {
     "Date Column Name": 45658,           // Excel serial number
     "Numeric Column": 20.5,              // Number as-is
     "Text Column": "Paris",              // Text as-is
@@ -173,7 +173,7 @@ async function processWeatherExcel(inputFile, sheetName, firstRow, outputFile) {
 
   // Step 3: Write output
   writeExcel(processed, outputFile);
-  
+
   return processed.length;
 }
 ```
@@ -187,7 +187,7 @@ data.forEach((row, i) => {
   if (row.Temperature === undefined) {
     console.warn(`Row ${i + 2}: Missing temperature data`);
   }
-  
+
   // Provide default values
   row.Temperature = row.Temperature ?? 0;
   row.Humidity = row.Humidity ?? null;
@@ -200,18 +200,18 @@ function validateDataForExcel(data) {
   if (!Array.isArray(data)) {
     throw new ScrapingError("Data must be an array", { data });
   }
-  
+
   if (data.length === 0) {
     throw new ScrapingError("Data array is empty", { data });
   }
-  
+
   // Check required fields
   data.forEach((row, i) => {
     if (!row.Date) {
       throw new ScrapingError(`Row ${i} missing Date field`, { row });
     }
   });
-  
+
   return data;
 }
 ```

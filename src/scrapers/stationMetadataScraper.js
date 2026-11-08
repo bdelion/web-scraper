@@ -12,7 +12,7 @@ const USER_AGENT = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win6
 /**
  * Searches for available weather stations by name.
  * Supports partial name matching.
- * 
+ *
  * @param {string} stationNamePattern - Partial or full name of the weather station
  * @param {number} maxResults - Maximum number of results to return (default: 10)
  * @returns {Promise<Array>} - Array of station objects with id, name, and region
@@ -93,7 +93,7 @@ async function searchWeatherStations(stationNamePattern, maxResults = 10) {
 /**
  * Validates if a weather station ID is valid and accessible.
  * Attempts to fetch station metadata to verify accessibility.
- * 
+ *
  * @param {string} stationId - The weather station ID to validate
  * @returns {Promise<Object>} - Metadata object with validation status and details
  * @throws {ScrapingError} - Throws if validation fails
@@ -155,7 +155,7 @@ async function validateWeatherStationId(stationId, options = {}) {
 /**
  * Retrieves available weather data time ranges for a station.
  * Checks what historical data is available.
- * 
+ *
  * @param {string} stationId - The weather station ID
  * @param {Object} dayjsDate - A dayjs date object to check
  * @returns {Promise<Object>} - Object with available data ranges and metadata
@@ -210,7 +210,7 @@ async function getStationDataAvailability(stationId, dayjsDate) {
 /**
  * Fetches metadata about a specific weather station.
  * Includes station name, region, and current data availability status.
- * 
+ *
  * @param {string} stationId - The weather station ID
  * @returns {Promise<Object>} - Object with station metadata
  * @throws {ScrapingError} - Throws if metadata cannot be retrieved
@@ -268,7 +268,7 @@ async function getWeatherStationMetadata(stationId) {
 /**
  * Bulk validates multiple weather station IDs.
  * Useful for checking if multiple stations are accessible.
- * 
+ *
  * @param {Array<string>} stationIds - Array of station IDs to validate
  * @param {Object} options - Optional configuration
  * @param {number} options.timeoutMs - Timeout per request (default: 5000)

@@ -80,10 +80,10 @@ describe("Module Name", () => {
   it("should do something specific", () => {
     // Arrange
     const input = "test data";
-    
+
     // Act
     const result = myFunction(input);
-    
+
     // Assert
     expect(result).toBe("expected");
   });
@@ -202,7 +202,7 @@ it("should read Excel file", () => {
 it("should write Excel file", () => {
   const data = [{ temp: 20 }, { temp: 21 }];
   writeExcel(data, "output/result.xlsx");
-  
+
   // Verify file was written (with mock-fs, it's in memory)
   expect(() => readExcel("output/result.xlsx")).not.toThrow();
 });
@@ -216,7 +216,7 @@ it("should process data asynchronously", async () => {
   mock.onGet(/api/).reply(200, { data: "success" });
 
   const result = await fetchData();
-  
+
   expect(result.data).toBe("success");
 });
 ```
@@ -325,7 +325,7 @@ describe("Full Weather Pipeline", () => {
   it("should process weather data end-to-end", async () => {
     // Mock station lookup
     mock.onGet(/findstation/).reply(200, `<option value="69001">Paris</option>`);
-    
+
     // Mock weather data
     mock.onGet(/weather/).reply(200, mockWeatherHtml);
 

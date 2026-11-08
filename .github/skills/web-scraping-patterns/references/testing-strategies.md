@@ -57,7 +57,7 @@ describe("performIdStationScraping", () => {
     mock.onGet(/meteociel.*findstation/).reply(200, mockHtml);
 
     const stationId = await performIdStationScraping("Paris");
-    
+
     expect(stationId).toBe("12345");
   });
 });
@@ -172,12 +172,12 @@ it("should handle malformed numbers", () => {
 ```javascript
 it("should process data sequentially", async () => {
   const callOrder = [];
-  
+
   mock.onGet(/station=1/).reply(() => {
     callOrder.push(1);
     return [200, { data: "station1" }];
   });
-  
+
   mock.onGet(/station=2/).reply(() => {
     callOrder.push(2);
     return [200, { data: "station2" }];
@@ -269,7 +269,7 @@ Use snapshots for comparing complex HTML parsing results:
 it("should match snapshot for weather data", () => {
   const html = fetchedWeatherHtml; // From mock
   const parsed = parseWeatherData(html);
-  
+
   expect(parsed).toMatchSnapshot();
 });
 

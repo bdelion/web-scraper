@@ -97,14 +97,14 @@ builder: (yargs) => {
       describe: 'Name of weather station',
       type: 'string'
     })
-    
+
     // Number option
     .option('timeout', {
       describe: 'Request timeout in milliseconds',
       type: 'number',
       default: 5000
     })
-    
+
     // Boolean flag
     .option('verbose', {
       alias: 'v',
@@ -112,20 +112,20 @@ builder: (yargs) => {
       type: 'boolean',
       default: false
     })
-    
+
     // Array option
     .option('stations', {
       describe: 'Multiple stations',
       type: 'array'
     })
-    
+
     // Choices/enum
     .option('format', {
       describe: 'Output format',
       choices: ['json', 'xlsx', 'csv'],
       default: 'xlsx'
     })
-    
+
     // Required option
     .option('required-param', {
       describe: 'This is mandatory',
@@ -141,12 +141,12 @@ builder: (yargs) => {
 ```javascript
 handler: async (argv) => {
   const { inputFile, outputFile, verbose } = argv;
-  
+
   if (verbose) {
     console.log('Input:', inputFile);
     console.log('Output:', outputFile);
   }
-  
+
   try {
     const result = await processData(inputFile, outputFile);
     console.log('Success!', result);
@@ -161,20 +161,20 @@ handler: async (argv) => {
 ```javascript
 handler: async (argv) => {
   const { excelFile, sheetName, firstRow } = argv;
-  
+
   // Validate file exists
   const fs = require('fs');
   if (!fs.existsSync(excelFile)) {
     console.error(`File not found: ${excelFile}`);
     process.exit(1);
   }
-  
+
   // Validate row number
   if (firstRow < 1) {
     console.error('First row must be >= 1');
     process.exit(1);
   }
-  
+
   try {
     const data = readExcel(excelFile, sheetName, firstRow);
     console.log(`Read ${data.length} rows`);
@@ -224,17 +224,17 @@ yargs.command({
   handler: async (argv) => {
     try {
       const { excelFile, sheetName, firstRow, weatherStationName, outputFile } = argv;
-      
+
       // Read Excel data
       const data = readExcel(excelFile, sheetName, firstRow);
-      
+
       // Process weather data
       const result = await processWeatherData({
         weatherStationName,
         inputData: data,
         outputFile
       });
-      
+
       console.log('✓ Processing complete');
     } catch (error) {
       console.error('✗ Error:', error.message);
@@ -265,7 +265,7 @@ yargs
     describe: 'Show help',
     type: 'boolean'
   })
-  .example('npm start processExcel --excelFile data.xlsx --sheetName "Weather" --firstRow 2 --weatherStationName "Paris"', 
+  .example('npm start processExcel --excelFile data.xlsx --sheetName "Weather" --firstRow 2 --weatherStationName "Paris"',
            'Process weather data from Excel')
   .example('npm start mycommand --input input.json --output output.json',
            'Convert JSON to Excel')
@@ -282,7 +282,7 @@ const { log } = require("./utils/logUtils");
 
 handler: async (argv) => {
   log(`Starting command: ${argv._[0]}`, "info");
-  
+
   try {
     const data = await processWeatherData(argv);
     log(`Command completed successfully`, "info");
@@ -323,9 +323,9 @@ yargs
 ```javascript
 handler: async (argv) => {
   const { inputFile, format, verbose } = argv;
-  
+
   const data = readInput(inputFile);
-  
+
   if (format === 'json') {
     console.log(JSON.stringify(data, null, 2));
   } else if (format === 'xlsx') {
@@ -333,7 +333,7 @@ handler: async (argv) => {
   } else if (format === 'csv') {
     writeCSV(data, 'output.csv');
   }
-  
+
   if (verbose) {
     log(`Exported ${data.length} rows`, "info");
   }
@@ -364,12 +364,12 @@ it('should handle CLI arguments', async () => {
 **Accessing Arguments in Handler**:
 ```javascript
 handler: async (argv) => {
-  const { 
+  const {
     excelFile,           // From --excelFile
     sheetName,           // From --sheetName
     _: [command, ...args] // Positional arguments
   } = argv;
-  
+
   console.log('Command:', command);
   console.log('File:', excelFile);
 }
@@ -390,7 +390,7 @@ builder: (yargs) => {
 ```javascript
 handler: async (argv) => {
   const steps = ['Fetching', 'Parsing', 'Writing'];
-  
+
   for (const step of steps) {
     console.log(`[${step}] Processing...`);
     await processStep(step);

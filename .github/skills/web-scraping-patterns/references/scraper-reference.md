@@ -20,7 +20,7 @@ const USER_AGENT = process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win6
 async function performIdStationScraping(weatherStationName) {
   try {
     log(`Searching for weather station: ${weatherStationName}`, "info");
-    
+
     const response = await axios.get(`${BASE_URL}?mode=findstation&str=${encodeURIComponent(weatherStationName)}`, {
       headers: { "User-Agent": USER_AGENT },
       timeout: 10000
@@ -91,20 +91,20 @@ async function fetchWithPuppeteer(url, options = {}) {
   let browser;
   try {
     log(`Launching Puppeteer for: ${url}`, "info");
-    
-    browser = await puppeteer.launch({ 
+
+    browser = await puppeteer.launch({
       headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();
-    
+
     // Set viewport and user agent
     await page.setViewport({ width: 1280, height: 720 });
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
     // Navigate with timeout
-    await page.goto(url, { 
+    await page.goto(url, {
       waitUntil: waitFor,
       timeout
     });
@@ -148,29 +148,29 @@ async function debugPage(url, outputPath) {
 ```javascript
 async function fetchWithRetry(url, maxRetries = 3, initialDelay = 1000) {
   let lastError;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       log(`Attempt ${attempt}/${maxRetries} to fetch ${url}`, "info");
-      
+
       const response = await axios.get(url, {
         headers: { "User-Agent": USER_AGENT },
         timeout: 10000
       });
-      
+
       return response.data;
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries) break;
-      
+
       const delay = initialDelay * Math.pow(2, attempt - 1);
       log(`Retry in ${delay}ms after error: ${error.message}`, "warn");
-      
+
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   throw new ScrapingError("Max retries exceeded", {
     url,
     attempts: maxRetries,
@@ -186,14 +186,14 @@ async function fetchWithRetry(url, maxRetries = 3, initialDelay = 1000) {
 ```javascript
 async function fetchMultipleDataPoints(stationId, dateRanges) {
   const results = [];
-  
+
   for (const range of dateRanges) {
     try {
       log(`Processing range: ${range.begin} to ${range.end}`, "info");
-      
+
       const data = await fetchWeatherDataForRange(stationId, range);
       results.push(...data);
-      
+
       // Polite delay between requests
       await new Promise(r => setTimeout(r, 500));
     } catch (error) {
@@ -201,7 +201,7 @@ async function fetchMultipleDataPoints(stationId, dateRanges) {
       // Continue with next range instead of failing entire batch
     }
   }
-  
+
   return results;
 }
 ```
@@ -211,7 +211,7 @@ async function fetchMultipleDataPoints(stationId, dateRanges) {
 ```javascript
 async function fetchWithLimit(urls, concurrency = 3) {
   const results = [];
-  
+
   for (let i = 0; i < urls.length; i += concurrency) {
     const batch = urls.slice(i, i + concurrency);
     const batchResults = await Promise.all(
@@ -219,7 +219,7 @@ async function fetchWithLimit(urls, concurrency = 3) {
     );
     results.push(...batchResults);
   }
-  
+
   return results;
 }
 ```

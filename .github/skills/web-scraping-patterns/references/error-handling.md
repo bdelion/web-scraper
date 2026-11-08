@@ -96,7 +96,7 @@ try {
   log(`Successfully fetched data for station ${stationId}`, "info");
 } catch (error) {
   log(`Error fetching weather data: ${error.message}`, "error");
-  
+
   // Also log context if available
   if (error instanceof ScrapingError) {
     console.error("Context:", error.context);
@@ -176,7 +176,7 @@ async function fetchWithStatusHandling(url) {
     return response.data;
   } catch (error) {
     const status = error.response?.status;
-    
+
     switch (status) {
       case 400:
         throw new ScrapingError("Bad request - check parameters", { url, status });
@@ -250,9 +250,9 @@ async function fetchWithPuppeteerErrorHandling(url) {
   try {
     browser = await puppeteer.launch();
     const page = await browser.newPage();
-    
+
     await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-    
+
     return await page.content();
   } catch (error) {
     if (error.message.includes("Timeout")) {
@@ -292,7 +292,7 @@ function validateWeatherData(data) {
         entry
       });
     }
-    
+
     if (typeof entry.Date !== "number") {
       throw new ScrapingError("Date must be a number (Excel format)", {
         index,

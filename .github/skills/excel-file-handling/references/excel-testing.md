@@ -41,11 +41,11 @@ function createMockExcelFile() {
     { Date: 45658, Temperature: 20.5, Humidity: 65 },
     { Date: 45659, Temperature: 21.0, Humidity: 62 }
   ];
-  
+
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  
+
   return XLSX.write(wb, { type: 'buffer' });
 }
 
@@ -82,14 +82,14 @@ describe("Excel Date Conversions", () => {
   it("should convert Excel serial to Dayjs correctly", () => {
     const excelSerial = 45658; // 01/01/2025
     const date = excelDateToDayjs(excelSerial);
-    
+
     expect(date.format("DD/MM/YYYY")).toBe("01/01/2025");
   });
 
   it("should handle fractional dates (time)", () => {
     const excelDateTime = 45658.25; // 01/01/2025 06:00
     const date = excelDateToDayjs(excelDateTime);
-    
+
     expect(date.format("HH:mm")).toBe("06:00");
   });
 
@@ -97,7 +97,7 @@ describe("Excel Date Conversions", () => {
     const original = "13/01/2025 14:30:45";
     const excelValue = dateToExcelValue(original);
     const date = excelDateToDayjs(excelValue);
-    
+
     // Should match within 1 second
     expect(date.format("DD/MM/YYYY HH:mm")).toBe("13/01/2025 14:30");
   });
@@ -113,7 +113,7 @@ const { ScrapingError } = require("../../src/errors/customErrors");
 describe("Excel Data Validation", () => {
   it("should reject invalid first row number", () => {
     const mockData = [{ col: "value" }];
-    
+
     expect(() => {
       readExcel("data.xlsx", "Sheet1", -1);
     }).toThrow("must be greater than or equal to 0");
@@ -170,7 +170,7 @@ describe("Excel Writing", () => {
     ];
 
     writeExcel(data, "output/result.xlsx");
-    
+
     // Verify file was created
     const fs = require("fs");
     expect(fs.existsSync("output/result.xlsx")).toBe(true);
@@ -182,7 +182,7 @@ describe("Excel Writing", () => {
     ];
 
     writeExcel(data, "output/formatted.xlsx");
-    
+
     // Read back and verify formatting
     const result = readExcel("output/formatted.xlsx", "Sheet1", 1);
     expect(result[0].Temperature).toBeDefined();
@@ -211,11 +211,11 @@ describe("Excel Sheet Handling", () => {
   it("should create sheets with correct name", () => {
     const data = [{ col: "value" }];
     writeExcel(data, "output/data.xlsx");
-    
+
     // Read workbook to check sheet names
     const workbook = XLSX.readFile("output/data.xlsx");
     const sheetNames = workbook.SheetNames;
-    
+
     expect(sheetNames).toContain("Sheet1");
   });
 });
@@ -236,11 +236,11 @@ describe("Full Excel Pipeline", () => {
       { Date: 45658, Temp: 20, Humidity: 65 },
       { Date: 45659, Temp: 21, Humidity: 62 }
     ];
-    
+
     const ws = XLSX.utils.json_to_sheet(inputData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Weather");
-    
+
     mockFs({
       "input/": {
         "data.xlsx": XLSX.write(wb, { type: 'buffer' })
@@ -256,7 +256,7 @@ describe("Full Excel Pipeline", () => {
   it("should read, transform, and write Excel data", () => {
     // Step 1: Read input
     const input = readExcel("input/data.xlsx", "Weather", 1);
-    
+
     // Step 2: Transform (convert dates and calculate values)
     const transformed = input.map(row => ({
       Date: dateToExcelValue(
@@ -265,10 +265,10 @@ describe("Full Excel Pipeline", () => {
       Temperature: row.Temp * 1.1, // Apply transformation
       Humidity: row.Humidity
     }));
-    
+
     // Step 3: Write output
     writeExcel(transformed, "output/processed.xlsx");
-    
+
     // Step 4: Verify output
     const output = readExcel("output/processed.xlsx", "Sheet1", 1);
     expect(output).toHaveLength(2);
@@ -315,10 +315,10 @@ it("should throw error for missing sheet", () => {
 ```javascript
 it("should handle writing empty data", () => {
   const emptyData = [];
-  
+
   // writeExcel should handle empty arrays gracefully
   writeExcel(emptyData, "output/empty.xlsx");
-  
+
   const result = readExcel("output/empty.xlsx", "Sheet1", 1);
   expect(result).toEqual([]);
 });
@@ -332,20 +332,20 @@ it("should handle writing empty data", () => {
 describe("Excel Output Snapshots", () => {
   it("should match snapshot for weather data format", () => {
     const data = [
-      { 
+      {
         Date: "01/01/2025 10:00:00",
         Temperature: 20.5,
         Humidity: 65,
         WindSpeed: 12.3
       },
-      { 
+      {
         Date: "01/01/2025 11:00:00",
         Temperature: 21.0,
         Humidity: 62,
         WindSpeed: 11.8
       }
     ];
-    
+
     // Snapshot captures exact format
     expect(JSON.stringify(data)).toMatchSnapshot();
   });
@@ -365,11 +365,11 @@ describe("Large Excel Files", () => {
       Temperature: 20 + Math.random() * 5,
       Humidity: 60 + Math.random() * 20
     }));
-    
+
     const ws = XLSX.utils.json_to_sheet(largeData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    
+
     mockFs({
       "data/": {
         "large.xlsx": XLSX.write(wb, { type: 'buffer' })
@@ -379,10 +379,10 @@ describe("Large Excel Files", () => {
     const start = Date.now();
     const data = readExcel("data/large.xlsx", "Sheet1", 1);
     const duration = Date.now() - start;
-    
+
     expect(data).toHaveLength(10000);
     expect(duration).toBeLessThan(5000); // Should complete in < 5 seconds
-    
+
     mockFs.restore();
   });
 });

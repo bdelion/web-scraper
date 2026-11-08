@@ -169,7 +169,7 @@ const ranges = [];
 for (let hour = 0; hour < 24; hour++) {
   const start = dayDate.hour(hour).minute(0);
   const end = start.add(1, 'hour');
-  
+
   ranges.push({
     begin: dateToExcelValue(start.format(DATEHOUR_FORMAT)),
     end: dateToExcelValue(end.format(DATEHOUR_FORMAT))
