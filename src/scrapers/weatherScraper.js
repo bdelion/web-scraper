@@ -169,6 +169,19 @@ async function fetchObservationPage(url) {
     );
     const useDocumentResponse = !domHasObservationTable && Boolean(observationDocument);
     const html = useDocumentResponse ? observationDocument.body : domHtml;
+    const documentResponseDiagnostics = documentResponses.map(({ body, ...metadata }) => {
+      const document$ = cheerio.load(body || "");
+      const bodyPreview = document$("body").text().replace(/\s+/g, " ").trim().slice(0, 1200);
+      return {
+        ...metadata,
+        bodyBytes: body === null ? null : Buffer.byteLength(body),
+        title: document$("title").text().trim(),
+        bodyPreview,
+        tableCount: document$("table").length,
+        hasObservationTable: findObservationTable(document$).length > 0,
+        reportsNoData: /non disponible/i.test(bodyPreview),
+      };
+    });
     const diagnostics = {
       ...navigation,
       title: await page.title(),
@@ -178,7 +191,7 @@ async function fetchObservationPage(url) {
       browserUserAgent,
       cookieNames: cookies.map(({ name }) => name),
       networkEvents,
-      documentResponses: documentResponses.map(({ body, ...metadata }) => ({ ...metadata, bodyBytes: body === null ? null : Buffer.byteLength(body) })),
+      documentResponses: documentResponseDiagnostics,
     };
     log(`Puppeteer page loaded: title=${JSON.stringify(diagnostics.title)}, bytes=${diagnostics.responseBytes}, source=${diagnostics.htmlSource}, cookies=${diagnostics.cookieNames.join(",") || "none"}`, "debug");
     if (cheerio.load(html)("#archive-message").length) {
@@ -486,6 +499,13 @@ async function performObservationScraping(weatherStationId, date) {
         tableCount: tables.length,
         tables,
       };
+      const documentWithNoData = diagnostics.browser?.documentResponses?.find(({ reportsNoData }) => reportsNoData);
+      const noDataMessage = documentWithNoData
+        ? "Meteociel reports that no weather data is available for the requested date."
+        : null;
+      if (noDataMessage) {
+        log(`${noDataMessage} Document preview: ${JSON.stringify(documentWithNoData.bodyPreview.slice(-300))}`, "warn");
+      }
       log(`Observation table not found: source=${pageSource}, title=${JSON.stringify(diagnostics.title)}, tables=${tables.length}, body=${JSON.stringify(diagnostics.bodyPreview.slice(0, 300))}`, "error");
       const tracePaths = saveObservationTrace(url, html, diagnostics, {
         axiosHtml: axiosChallengeHtml,
@@ -493,7 +513,7 @@ async function performObservationScraping(weatherStationId, date) {
         documentBodies: browserDocumentBodies,
       });
       throw new ScrapingError(
-        `Table not found on the page. Diagnostic trace: ${tracePaths?.htmlPath || "see preceding log for trace save error"}`,
+        `${noDataMessage || "Table not found on the page."} Diagnostic trace: ${tracePaths?.htmlPath || "see preceding log for trace save error"}`,
         { url, diagnostics, tracePaths }
       );
     }
