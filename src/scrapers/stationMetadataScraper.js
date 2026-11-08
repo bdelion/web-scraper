@@ -98,7 +98,9 @@ async function searchWeatherStations(stationNamePattern, maxResults = 10) {
  * @returns {Promise<Object>} - Metadata object with validation status and details
  * @throws {ScrapingError} - Throws if validation fails
  */
-async function validateWeatherStationId(stationId) {
+async function validateWeatherStationId(stationId, options = {}) {
+  const { timeoutMs = 5000 } = options;
+
   if (typeof stationId !== 'string' || !stationId.trim()) {
     throw new ScrapingError("Station ID must be a non-empty string", { stationId });
   }
@@ -115,7 +117,7 @@ async function validateWeatherStationId(stationId) {
 
     const response = await axios.get(testUrl, {
       headers: { "User-Agent": USER_AGENT },
-      timeout: 5000
+      timeout: timeoutMs
     });
 
     if (response.status !== 200) {
@@ -284,7 +286,7 @@ async function validateWeatherStationIdBulk(stationIds, options = {}) {
 
   for (const stationId of stationIds) {
     try {
-      await validateWeatherStationId(stationId);
+      await validateWeatherStationId(stationId, { timeoutMs });
       results.valid.push(stationId);
       log(`✓ Station ${stationId} is valid`, "info");
     } catch (error) {

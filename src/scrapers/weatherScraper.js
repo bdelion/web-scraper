@@ -157,7 +157,7 @@ async function fetchObservationPage(url) {
     const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
     const navigation = { status: response?.status() ?? null, url: page.url() };
     log(`Puppeteer navigation: status=${navigation.status ?? "unknown"}, url=${navigation.url}`, "debug");
-    await page.waitForFunction(() => !document.querySelector("#archive-message"), { timeout: 15000 });
+    await page.waitForFunction(() => !globalThis.document.querySelector("#archive-message"), { timeout: 15000 });
     await Promise.allSettled(documentBodyTasks);
 
     const cookies = await page.cookies(url);

@@ -147,6 +147,12 @@ describe("Station Metadata Scraper", () => {
       expect(result).toHaveProperty("errors");
     });
 
+    it("should pass the configured timeout to each station validation request", async () => {
+      await validateWeatherStationIdBulk(["69001"], { timeoutMs: 1234 });
+
+      expect(mock.history.get[0].timeout).toBe(1234);
+    });
+
     it("should throw ScrapingError on empty array", async () => {
       await expect(validateWeatherStationIdBulk([])).rejects.toThrow(ScrapingError);
     });

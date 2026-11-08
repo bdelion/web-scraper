@@ -1,7 +1,14 @@
 const assert = require("assert");
+const axios = require("axios");
+const MockAdapter = require("axios-mock-adapter");
 const { formatData, performIdStationScraping } = require("../src/scrapers/weatherScraper");
 const { JSDateToString, dateToExcelValue } = require("../src/utils/dateHourUtils");
 const { ScrapingError } = require("../src/errors/customErrors");
+const mockAxios = new MockAdapter(axios);
+
+afterEach(() => {
+  mockAxios.reset();
+});
 
 // Mocked dependencies
 const mockExcelData = [
@@ -54,10 +61,11 @@ describe("Weather Script Tests", () => {
 
     it("should throw an error for an unknown station", async () => {
       const stationName = "InvalidStation";
+      mockAxios.onGet(/lieuhelper\.php/).reply(200, "");
 
       await assert.rejects(async () => {
         await performIdStationScraping(stationName);
-      }, /[Error: Unexpected error: Invalid response received for the station]/);
+      }, /Unexpected error: Invalid response format for the station/);
     });
   });
 
