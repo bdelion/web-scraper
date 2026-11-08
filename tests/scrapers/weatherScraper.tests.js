@@ -328,6 +328,27 @@ describe("performIdStationScraping", () => {
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Unexpected error: Network Error");
   }, 7000);
+
+  it("should stop retrying when the API rate-limits the request", async () => {
+    const stationName = "RateLimitedStation";
+    const url = `https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`;
+    mockAxios.onGet(url).reply(429, "Too Many Requests", { "Retry-After": "60" });
+
+    let error;
+    try {
+      await performIdStationScraping(stationName);
+    } catch (caughtError) {
+      error = caughtError;
+    }
+
+    expect(error.message).toBe("Meteociel rate limit reached (HTTP 429); retry later.");
+    expect(error.details).toMatchObject({
+      url,
+      status: 429,
+      retryAfter: "60"
+    });
+    expect(mockAxios.history.get).toHaveLength(1);
+  });
 });
 
 // Tests for the performObservationScraping function

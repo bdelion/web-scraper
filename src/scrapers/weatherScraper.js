@@ -174,6 +174,14 @@ async function performIdStationScraping(weatherStationName) {
       return idStation;
     } catch (error) {
       log(`Attempt ${attempt} failed for ${url}: ${error.message}`, "warn");
+      if (error.response && error.response.status === 429) {
+        throw new ScrapingError("Meteociel rate limit reached (HTTP 429); retry later.", {
+          url,
+          status: error.response.status,
+          retryAfter: error.response.headers.get("retry-after"),
+          originalError: error
+        });
+      }
       if (attempt === 3 || error instanceof ScrapingError) {
         throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
       }
