@@ -1,6 +1,7 @@
 // Import the log module
 const { log } = require('../../src/utils/logUtils');
 const { dayjs, DATEHOUR_FORMAT } = require('../../src/config/dayjsConfig');
+const originalLogLevel = process.env.LOG_LEVEL;
 
 // Create a mock timestamp for comparison
 const mockTimestamp = '01/01/2025 12:00:01';
@@ -15,6 +16,7 @@ jest.mock('../../src/utils/dateHourUtils', () => {
 
 // Mock the console.log function before each test
 beforeEach(() => {
+  process.env.LOG_LEVEL = 'debug';
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -22,6 +24,8 @@ beforeEach(() => {
 // Restore the original console.log function after each test
 afterEach(() => {
   jest.restoreAllMocks();
+  if (originalLogLevel === undefined) delete process.env.LOG_LEVEL;
+  else process.env.LOG_LEVEL = originalLogLevel;
 });
 
 describe('log function', () => {
@@ -104,6 +108,27 @@ describe('log function', () => {
 
     // Check if console.log was called with the "info" level by default
     expect(console.log).toHaveBeenCalledWith(expectedOutput);
+  });
+
+  it('should suppress messages below the configured log level', () => {
+    process.env.LOG_LEVEL = 'warn';
+
+    log('Routine progress', 'info');
+    log('Diagnostic details', 'debug');
+    log('Warning remains visible', 'warn');
+    log('Error remains visible', 'error');
+
+    expect(console.log).toHaveBeenCalledTimes(2);
+    expect(console.log).toHaveBeenNthCalledWith(1, expect.stringContaining('Warning remains visible'));
+    expect(console.log).toHaveBeenNthCalledWith(2, expect.stringContaining('Error remains visible'));
+  });
+
+  it('should always print messages regardless of the configured log level', () => {
+    process.env.LOG_LEVEL = 'error';
+
+    log('Processing summary', 'always');
+
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Processing summary'));
   });
 
   it('should handle non-string messages gracefully', () => {

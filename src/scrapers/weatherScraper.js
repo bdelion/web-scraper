@@ -1,5 +1,10 @@
+require("../config/env");
+
 const axios = require("axios");
 const cheerio = require("cheerio");
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer");
 const { ScrapingError } = require("../errors/customErrors");
 const { dayjs, DATE_FORMAT, DATEHOUR_FORMAT, HOUR_FORMAT } = require("../config/dayjsConfig");
 const { JSDateToString, formatHour, excelDateToDayjs } = require("../utils/dateHourUtils");
@@ -10,7 +15,191 @@ const { log } = require("../utils/logUtils");
 // API URL for retrieving the station ID
 const BASE_URL = process.env.METEO_API_BASE_URL || 'https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=';
 // User-Agent header constant
-const USER_AGENT = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+const USER_AGENT = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0";
+let archiveCookieHeader = null;
+let archiveUserAgent = null;
+
+function isPuppeteerEnabled() {
+  return !["false", "0", "no", "off"].includes(
+    String(process.env.METEO_USE_PUPPETEER || "true").trim().toLowerCase()
+  );
+}
+
+function saveObservationTrace(url, html, diagnostics, artifacts = {}) {
+  const traceDirectory = process.env.METEO_TRACE_DIR
+    ? path.resolve(process.env.METEO_TRACE_DIR)
+    : path.resolve(__dirname, "../../.debug/meteociel");
+  const timestamp = `${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`;
+  const basePath = path.join(traceDirectory, `observation-${timestamp}`);
+  const htmlPath = `${basePath}.html`;
+  const jsonPath = `${basePath}.json`;
+  const savedArtifacts = {};
+
+  try {
+    fs.mkdirSync(traceDirectory, { recursive: true });
+    fs.writeFileSync(htmlPath, html, "utf8");
+    if (artifacts.axiosHtml) {
+      savedArtifacts.axiosHtmlPath = `${basePath}-axios.html`;
+      fs.writeFileSync(savedArtifacts.axiosHtmlPath, artifacts.axiosHtml, "utf8");
+    }
+    if (artifacts.documentBodies?.length) {
+      savedArtifacts.documentResponsePaths = artifacts.documentBodies.map((body, index) => {
+        const responsePath = `${basePath}-document-${index + 1}.html`;
+        fs.writeFileSync(responsePath, body, "utf8");
+        return responsePath;
+      });
+    }
+    if (artifacts.screenshot) {
+      savedArtifacts.screenshotPath = `${basePath}.png`;
+      fs.writeFileSync(savedArtifacts.screenshotPath, artifacts.screenshot);
+    }
+    fs.writeFileSync(jsonPath, JSON.stringify({ url, ...diagnostics }, null, 2), "utf8");
+    log(`Observation trace saved: ${htmlPath}`, "warn");
+    log(`Observation diagnostics saved: ${jsonPath}`, "warn");
+    return { htmlPath, jsonPath, ...savedArtifacts };
+  } catch (error) {
+    log(`Could not save observation trace: ${error.message}`, "error");
+    return null;
+  }
+}
+
+function getBrowserLaunchOptions() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return { headless: true, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH };
+  }
+
+  const bundledBrowserPath = puppeteer.executablePath();
+  const bundledIcuDataPath = path.join(path.dirname(bundledBrowserPath), "icudtl.dat");
+  if (!fs.existsSync(bundledIcuDataPath)) {
+    // A partially downloaded Puppeteer browser cannot start. Prefer installed Chrome.
+    return { headless: true, channel: "chrome" };
+  }
+
+  return { headless: true };
+}
+
+function findObservationTable($) {
+  return $('table').filter((_, candidate) => {
+    let hasObservationHeaders = false;
+    $(candidate).children('tr, tbody').children('tr').each((__, row) => {
+      const cells = $(row).find('td');
+      const hourHeader = $(cells[0]).text().replace(/\s+/g, ' ').trim().toLowerCase();
+      const temperatureHeader = $(cells[2]).text().replace(/\s+/g, ' ').trim().toLowerCase();
+      if (hourHeader.includes('heure') && temperatureHeader.includes('temp')) {
+        hasObservationHeaders = true;
+        return false;
+      }
+    });
+    return hasObservationHeaders;
+  }).first();
+}
+
+async function fetchObservationPage(url) {
+  const launchOptions = getBrowserLaunchOptions();
+  log(`Launching Puppeteer with ${launchOptions.executablePath || launchOptions.channel || "bundled Chrome"}.`, "debug");
+  const browser = await puppeteer.launch(launchOptions);
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 900 });
+    const networkEvents = [];
+    const documentResponses = [];
+    const documentBodyTasks = [];
+    const requestUrl = new URL(url);
+    const shouldTraceUrl = (candidateUrl) => {
+      try {
+        const hostname = new URL(candidateUrl).hostname;
+        return hostname === requestUrl.hostname || hostname.endsWith(".meteociel.fr");
+      } catch {
+        return false;
+      }
+    };
+
+    page.on("requestfailed", (request) => {
+      if (shouldTraceUrl(request.url())) {
+        networkEvents.push({
+          type: "requestfailed",
+          url: request.url(),
+          resourceType: request.resourceType(),
+          error: request.failure()?.errorText || "unknown",
+        });
+      }
+    });
+    page.on("response", (pageResponse) => {
+      const request = pageResponse.request();
+      if (!shouldTraceUrl(pageResponse.url())) return;
+
+      const headers = pageResponse.headers();
+      const entry = {
+        url: pageResponse.url(),
+        status: pageResponse.status(),
+        resourceType: request.resourceType(),
+        contentType: headers["content-type"] || null,
+        contentLength: headers["content-length"] || null,
+      };
+      networkEvents.push({ type: "response", ...entry });
+      if (request.resourceType() === "document") {
+        const documentResponse = { ...entry, body: null, bodyError: null };
+        documentResponses.push(documentResponse);
+        documentBodyTasks.push(pageResponse.text().then(
+          (body) => { documentResponse.body = body; },
+          (error) => { documentResponse.bodyError = error.message; }
+        ));
+      }
+    });
+    page.on("pageerror", (error) => networkEvents.push({ type: "pageerror", message: error.message }));
+    page.on("console", (message) => {
+      if (message.type() === "error") networkEvents.push({ type: "console.error", message: message.text() });
+    });
+
+    const browserUserAgent = await page.evaluate(() => navigator.userAgent);
+    archiveUserAgent = browserUserAgent;
+    log(`Puppeteer browser User-Agent: ${browserUserAgent}`, "debug");
+    const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const navigation = { status: response?.status() ?? null, url: page.url() };
+    log(`Puppeteer navigation: status=${navigation.status ?? "unknown"}, url=${navigation.url}`, "debug");
+    await page.waitForFunction(() => !document.querySelector("#archive-message"), { timeout: 15000 });
+    await Promise.allSettled(documentBodyTasks);
+
+    const cookies = await page.cookies(url);
+    archiveCookieHeader = cookies.map(({ name, value }) => `${name}=${value}`).join("; ") || null;
+    const domHtml = await page.content();
+    const domHasObservationTable = findObservationTable(cheerio.load(domHtml)).length > 0;
+    const observationDocument = [...documentResponses].reverse().find(
+      ({ body }) => body && findObservationTable(cheerio.load(body)).length > 0
+    );
+    const useDocumentResponse = !domHasObservationTable && Boolean(observationDocument);
+    const html = useDocumentResponse ? observationDocument.body : domHtml;
+    const diagnostics = {
+      ...navigation,
+      title: await page.title(),
+      responseBytes: Buffer.byteLength(html),
+      domBytes: Buffer.byteLength(domHtml),
+      htmlSource: useDocumentResponse ? "document-response" : "browser-dom",
+      browserUserAgent,
+      cookieNames: cookies.map(({ name }) => name),
+      networkEvents,
+      documentResponses: documentResponses.map(({ body, ...metadata }) => ({ ...metadata, bodyBytes: body === null ? null : Buffer.byteLength(body) })),
+    };
+    log(`Puppeteer page loaded: title=${JSON.stringify(diagnostics.title)}, bytes=${diagnostics.responseBytes}, source=${diagnostics.htmlSource}, cookies=${diagnostics.cookieNames.join(",") || "none"}`, "debug");
+    if (cheerio.load(html)("#archive-message").length) {
+      throw new Error("Meteociel browser verification is still present after the page reload.");
+    }
+    let screenshot = null;
+    try {
+      screenshot = await page.screenshot({ type: "png", fullPage: true });
+    } catch (error) {
+      log(`Could not capture Puppeteer screenshot: ${error.message}`, "warn");
+    }
+    return {
+      html,
+      diagnostics,
+      screenshot,
+      documentBodies: documentResponses.map(({ body }) => body).filter((body) => body !== null),
+    };
+  } finally {
+    await browser.close();
+  }
+}
 
 /**
  * Creates an array containing date ranges (start/end).
@@ -153,7 +342,7 @@ async function performIdStationScraping(weatherStationName) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await axios.post(url, {}, {
+      const response = await axios.get(url, {
         headers: { "User-Agent": USER_AGENT }
       });
 
@@ -174,6 +363,14 @@ async function performIdStationScraping(weatherStationName) {
       return idStation;
     } catch (error) {
       log(`Attempt ${attempt} failed for ${url}: ${error.message}`, "warn");
+      if (error.response && error.response.status === 429) {
+        throw new ScrapingError("Meteociel rate limit reached (HTTP 429); retry later.", {
+          url,
+          status: error.response.status,
+          retryAfter: error.response.headers.get("retry-after"),
+          originalError: error
+        });
+      }
       if (attempt === 3 || error instanceof ScrapingError) {
         throw new ScrapingError(`Unexpected error: ${error.message}`, { url, originalError: error });
       }
@@ -203,19 +400,104 @@ async function performObservationScraping(weatherStationId, date) {
   log(`URL called: ${url}`, "info");
 
   try {
-    const response = await axios.get(url, { headers: { "User-Agent": USER_AGENT } });
+    const requestUserAgent = archiveUserAgent || USER_AGENT;
+    const headers = { "User-Agent": requestUserAgent };
+    if (archiveCookieHeader) headers.Cookie = archiveCookieHeader;
+    const response = await axios.get(url, { headers });
+    log(`Axios response: status=${response.status}, content-type=${response.headers?.["content-type"] || "unknown"}, bytes=${Buffer.byteLength(String(response.data))}, cached-cookie=${Boolean(archiveCookieHeader)}`, "debug");
     if (response.status !== 200) {
       throw new ScrapingError(`HTTP error: Received status ${response.status}`, { url });
     }
 
-    const $ = cheerio.load(response.data);
-    const table = $('table:nth-child(3)[width="100%"]');
+    let html = response.data;
+    let pageSource = "axios";
+    let browserDiagnostics = null;
+    let axiosChallengeHtml = null;
+    let browserScreenshot = null;
+    let browserDocumentBodies = [];
+    if (cheerio.load(html)("#archive-message").length) {
+      axiosChallengeHtml = html;
+      if (!isPuppeteerEnabled()) {
+        log("Meteociel requested browser verification; Puppeteer is disabled, keeping the Axios response for analysis.", "warn");
+        const challengePage = cheerio.load(html);
+        const diagnostics = {
+          source: "axios",
+          puppeteerEnabled: false,
+          axiosStatus: response.status,
+          axiosContentType: response.headers?.["content-type"] || null,
+          axiosUserAgent: requestUserAgent,
+          responseBytes: Buffer.byteLength(String(html)),
+          title: challengePage("title").text().trim(),
+          archiveMessage: challengePage("#archive-message").text().trim() || null,
+          bodyPreview: challengePage("body").text().replace(/\s+/g, " ").trim().slice(0, 1200),
+          tableCount: challengePage("table").length,
+        };
+        const tracePaths = saveObservationTrace(url, html, diagnostics);
+        throw new ScrapingError(
+          `Meteociel returned browser verification and Puppeteer is disabled. Axios trace: ${tracePaths?.htmlPath || "see preceding log"}`,
+          { url, diagnostics, tracePaths }
+        );
+      }
+      log("Meteociel requested browser verification; retrying with Puppeteer.", "warn");
+      const browserPage = await fetchObservationPage(url);
+      html = browserPage.html;
+      browserDiagnostics = browserPage.diagnostics;
+      browserScreenshot = browserPage.screenshot;
+      browserDocumentBodies = browserPage.documentBodies;
+      pageSource = "puppeteer";
+    }
+
+    const $ = cheerio.load(html);
+    if ($("#archive-message").length) {
+      throw new ScrapingError(
+        "Meteociel browser verification is still present after retrying with Puppeteer.",
+        { url }
+      );
+    }
+
+    // Meteociel has moved this table between nested layout tables over time.
+    // Locate it by its column headers instead of its position in the page.
+    const table = findObservationTable($);
     if (!table.length) {
-      throw new ScrapingError("Table not found on the page. The page structure may have changed.", { url });
+      const tables = $("table").map((index, candidate) => {
+        const rows = $(candidate).find("tr").slice(0, 3).map((_, row) =>
+          $(row).find("td, th").map((__, cell) => $(cell).text().replace(/\s+/g, " ").trim()).get()
+        ).get();
+        return {
+          index,
+          attributes: candidate.attribs,
+          rowCount: $(candidate).find("tr").length,
+          sampleRows: rows,
+        };
+      }).get();
+      const diagnostics = {
+        source: pageSource,
+        axiosUserAgent: requestUserAgent,
+        axiosStatus: response.status,
+        axiosContentType: response.headers?.["content-type"] || null,
+        browser: browserDiagnostics,
+        axiosChallengeBytes: axiosChallengeHtml ? Buffer.byteLength(axiosChallengeHtml) : null,
+        title: $("title").text().trim(),
+        responseBytes: Buffer.byteLength(String(html)),
+        archiveMessage: $("#archive-message").text().trim() || null,
+        bodyPreview: $("body").text().replace(/\s+/g, " ").trim().slice(0, 1200),
+        tableCount: tables.length,
+        tables,
+      };
+      log(`Observation table not found: source=${pageSource}, title=${JSON.stringify(diagnostics.title)}, tables=${tables.length}, body=${JSON.stringify(diagnostics.bodyPreview.slice(0, 300))}`, "error");
+      const tracePaths = saveObservationTrace(url, html, diagnostics, {
+        axiosHtml: axiosChallengeHtml,
+        screenshot: browserScreenshot,
+        documentBodies: browserDocumentBodies,
+      });
+      throw new ScrapingError(
+        `Table not found on the page. Diagnostic trace: ${tracePaths?.htmlPath || "see preceding log for trace save error"}`,
+        { url, diagnostics, tracePaths }
+      );
     }
 
     const dataWeather = [];
-    table.find("tbody tr").each((_, row) => {
+    table.children("tr, tbody").children("tr").each((_, row) => {
       const data = processWeatherRow(row, $, date, weatherStationId);
       if (data) dataWeather.push(data);
     });
@@ -269,6 +551,12 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
   log(`End Date: ${dayjsEndDate.format(DATEHOUR_FORMAT)}`, "info");
   log(`End Iteration Date: ${dateEndIteration.format(DATEHOUR_FORMAT)}`, "info");
 
+  let plannedObservationDays = 0;
+  for (let plannedDate = dateIteration.clone(); plannedDate.isBefore(dateEndIteration); plannedDate = plannedDate.add(1, "day")) {
+    plannedObservationDays += 1;
+  }
+  log(`Observation URLs planned for this range: ${plannedObservationDays}`, "info");
+
   const weatherData = []; // Array to hold the collected weather data
   while (dateIteration.isBefore(dateEndIteration)) {
     log(`Iteration Date: ${dateIteration.format(DATE_FORMAT)}`, "info");
@@ -317,6 +605,15 @@ async function getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)
 async function fetchWeatherDataByDateRanges(entries, weatherStationId) {
   const weatherData = [];
   let previousEndDate = 0;
+
+  const rangesToFetch = entries.filter((entry) => entry.end - entry.begin !== 0);
+  log(
+    `Weather data ranges: total=${entries.length}, ranges requiring scraping=${rangesToFetch.length}`,
+    "info"
+  );
+  if (entries.length === 0) {
+    log("No missing temperature ranges; no observation requests will be made.", "info");
+  }
 
   for (const entry of entries) {
     if (entry.end - entry.begin !== 0) {

@@ -24,14 +24,14 @@ process.on('uncaughtException', (err) => {
 // === LOGIC SHARED BETWEEN BOTH COMMANDS ===
 async function processWeatherData({ weatherStationName, inputData, outputFile, isJSONOutput = false }) {
   const timerStart = Date.now();
-  log("Starting data processing...", "info");
+  log("Starting data processing...", "always");
 
   // Retrieve the desired weather station's ID
-  log(`Retrieving the weather station ID for: ${weatherStationName}`, "info");
+  log(`Retrieving the weather station ID for: ${weatherStationName}`, "always");
   const weatherStationId = await performIdStationScraping(weatherStationName);
 
   // Process the entries sequentially
-  log("Processing entries sequentially", "info");
+  log("Processing entries sequentially", "always");
   const weatherData = await fetchWeatherDataByDateRanges(inputData, weatherStationId);
 
   if (isJSONOutput) {
@@ -41,12 +41,12 @@ async function processWeatherData({ weatherStationName, inputData, outputFile, i
     // Save the results to an Excel file
     const inputDir = path.resolve(path.dirname(outputFile || '.'));
     const finalOutputFile = outputFile || path.join(inputDir, 'OutputData.xlsx');
-    log(`Saving the results to: ${finalOutputFile}`, "info");
+    log(`Saving the results to: ${finalOutputFile}`, "always");
     writeExcel(weatherData, finalOutputFile);
   }
 
   const duration = (Date.now() - timerStart) / 1000;
-  log(`Script finished in ${duration.toFixed(2)} seconds`, "info");
+  log(`Script finished in ${duration.toFixed(2)} seconds`, "always");
 }
 
 // === YARGS MULTI-COMMANDS CONFIGURATION ===
@@ -93,7 +93,7 @@ yargs
     handler: async (argv) => {
       const { excelFile, sheetName, firstRow } = argv;
 
-      log(`Reading Excel file: ${excelFile}`, "info");
+      log(`Reading Excel file: ${excelFile}`, "always");
       const jsonExcelData = readExcel(excelFile, sheetName, firstRow);
 
       log("Formatting data from the file", "info");
