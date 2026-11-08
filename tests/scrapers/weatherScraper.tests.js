@@ -308,6 +308,27 @@ describe("performIdStationScraping", () => {
     expect(result).toBe(stationId);
   });
 
+  it("should show the station search URL only when debug logging is enabled", async () => {
+    const stationName = "LoggingStation";
+    mockAxios.onGet(/findstation.*LoggingStation/).reply(200, "12345|Other data");
+    const originalLogLevel = process.env.LOG_LEVEL;
+    const consoleLog = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      process.env.LOG_LEVEL = "warn";
+      await performIdStationScraping(stationName);
+      expect(consoleLog).not.toHaveBeenCalled();
+
+      process.env.LOG_LEVEL = "debug";
+      await performIdStationScraping(stationName);
+      expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining("performIdStationScraping > url:"));
+    } finally {
+      if (originalLogLevel === undefined) delete process.env.LOG_LEVEL;
+      else process.env.LOG_LEVEL = originalLogLevel;
+      consoleLog.mockRestore();
+    }
+  });
+
   it("should throw an error if the API response is invalid", async () => {
     const stationName = "InvalidStation";
     mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
@@ -525,6 +546,43 @@ describe("performObservationScraping", () => {
     expect(browser.close).toHaveBeenCalledTimes(1);
   });
 
+  it("should explain when Meteociel has no data for the requested date", async () => {
+    const regex = /https:\/\/www\.meteociel\.fr\/temps-reel\/obs_villes\.php.*/;
+    const challengePage = '<p id="archive-message">Vérification du navigateur...</p>';
+    const noDataPage = '<html><body><p>Données non disponibles Choisir une autre date</p></body></html>';
+    mockAxios.onGet(regex).reply(200, challengePage);
+
+    const handlers = {};
+    const documentResponse = {
+      url: () => "https://www.meteociel.fr/temps-reel/obs_villes.php?code2=1234",
+      status: () => 200,
+      headers: () => ({ "content-type": "text/html; charset=utf-8" }),
+      request: () => ({ resourceType: () => "document" }),
+      text: async () => noDataPage,
+    };
+    const page = {
+      on: jest.fn((event, handler) => { handlers[event] = handler; }),
+      evaluate: jest.fn().mockResolvedValue("Chrome mock User-Agent"),
+      setViewport: jest.fn(),
+      goto: jest.fn(async () => {
+        handlers.response(documentResponse);
+        return { status: () => 200 };
+      }),
+      url: jest.fn().mockReturnValue("https://www.meteociel.fr/temps-reel/obs_villes.php?code2=1234"),
+      title: jest.fn().mockResolvedValue("Meteociel mock page"),
+      waitForFunction: jest.fn(),
+      cookies: jest.fn().mockResolvedValue([{ name: "archivebotok", value: "1" }]),
+      content: jest.fn().mockResolvedValue("<html><body></body></html>"),
+      screenshot: jest.fn().mockResolvedValue(Buffer.from("screenshot")),
+    };
+    const browser = { newPage: jest.fn().mockResolvedValue(page), close: jest.fn() };
+    puppeteer.launch.mockResolvedValue(browser);
+
+    await expect(performObservationScraping("1234", dayjs("2026-09-30")))
+      .rejects.toThrow("Meteociel reports that no weather data is available for the requested date");
+    expect(browser.close).toHaveBeenCalledTimes(1);
+  });
+
   it("should save the raw Axios challenge response when Puppeteer is disabled", async () => {
     const traceDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "weather-scraper-traces-"));
     const previousTraceDirectory = process.env.METEO_TRACE_DIR;
@@ -606,5 +664,18 @@ describe("getWeatherDataBetween2Dates", () => {
       .reply(200, `<table width="100%"><tbody></tbody></table>`);
     
     await expect(getWeatherDataBetween2Dates(weatherStationId, startDate, endDate)).rejects.toThrow("Table not found on the page");
+  });
+
+  it("should reject a range when all extracted temperatures are invalid", async () => {
+    mockAxios.onGet(/https:\/\/www\.meteociel\.fr\/temps-reel\/obs_villes\.php.*/)
+      .reply(200, `
+        <table width="100%"><tbody>
+          <tr><td>Heure locale</td><td>Visi</td><td>Température</td></tr>
+          <tr><td>00h00</td><td></td><td>999</td></tr>
+        </tbody></table>
+      `);
+
+    await expect(getWeatherDataBetween2Dates("12345", 44561, 44562))
+      .rejects.toThrow("No valid temperature data found for the requested date range");
   });
 });
