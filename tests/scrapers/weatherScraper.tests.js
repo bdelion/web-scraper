@@ -298,7 +298,7 @@ describe("performIdStationScraping", () => {
   it("should return the station ID if the API responds correctly", async () => {
     const stationName = "TestStation";
     const stationId = "12345";
-    mockAxios.onPost(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
+    mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
       .reply(200, `${stationId}|Other data`);
 
     const result = await performIdStationScraping(stationName);
@@ -307,7 +307,7 @@ describe("performIdStationScraping", () => {
 
   it("should throw an error if the API response is invalid", async () => {
     const stationName = "InvalidStation";
-    mockAxios.onPost(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
+    mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
       .reply(200, "|");
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Station ID not found in the response");
@@ -315,7 +315,7 @@ describe("performIdStationScraping", () => {
 
   it("should throw an error if the API response is not a number", async () => {
     const stationName = "ValidStation";
-    mockAxios.onPost(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
+    mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
       .reply(200, "bob|");
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Station ID is not a number in the response");
@@ -323,7 +323,7 @@ describe("performIdStationScraping", () => {
 
   it("should throw an error on network issues", async () => {
     const stationName = "NetworkIssueStation";
-    mockAxios.onPost(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
+    mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
       .networkError();
 
     await expect(performIdStationScraping(stationName)).rejects.toThrow("Unexpected error: Network Error");

@@ -153,7 +153,7 @@ async function performIdStationScraping(weatherStationName) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await axios.post(url, {}, {
+      const response = await axios.get(url, {
         headers: { "User-Agent": USER_AGENT }
       });
 
