@@ -110,7 +110,7 @@ async function validateWeatherStationId(stationId, options = {}) {
   }
 
   // Try to fetch a page for this station to verify it exists
-  const testUrl = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${stationId}&jour2=${new Date().getDate()}&mois2=${new Date().getMonth() + 1}&annee2=${new Date().getFullYear()}`;
+  const testUrl = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${stationId}&jour2=${new Date().getDate()}&mois2=${new Date().getMonth()}&annee2=${new Date().getFullYear()}`;
 
   try {
     log(`Validating weather station ID: ${stationId}`, "info");
@@ -170,7 +170,7 @@ async function getStationDataAvailability(stationId, dayjsDate) {
     log(`Checking data availability for station ${stationId}`, "info");
 
     // Use the standard observation page to check data availability
-    const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${stationId}&jour2=${dayjsDate.date()}&mois2=${dayjsDate.month() + 1}&annee2=${dayjsDate.year()}`;
+    const url = `https://www.meteociel.fr/temps-reel/obs_villes.php?code2=${stationId}&jour2=${dayjsDate.date()}&mois2=${dayjsDate.month()}&annee2=${dayjsDate.year()}`;
 
     const response = await axios.get(url, {
       headers: { "User-Agent": USER_AGENT },

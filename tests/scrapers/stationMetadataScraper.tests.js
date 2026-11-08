@@ -91,6 +91,8 @@ describe("Station Metadata Scraper", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.stationId).toBe("69001");
+      const requestUrl = new URL(mock.history.get[0].url);
+      expect(requestUrl.searchParams.get("mois2")).toBe(String(new Date().getMonth()));
     });
 
     it("should throw ScrapingError on empty station ID", async () => {
@@ -199,6 +201,7 @@ describe("Station Metadata Scraper", () => {
       expect(result).toHaveProperty("hasData");
       expect(result).toHaveProperty("rowCount");
       expect(result.hasData).toBe(true);
+      expect(new URL(mock.history.get[0].url).searchParams.get("mois2")).toBe("0");
     });
 
     it("should return hasData false when no data available", async () => {
