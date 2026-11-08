@@ -308,6 +308,27 @@ describe("performIdStationScraping", () => {
     expect(result).toBe(stationId);
   });
 
+  it("should show the station search URL only when debug logging is enabled", async () => {
+    const stationName = "LoggingStation";
+    mockAxios.onGet(/findstation.*LoggingStation/).reply(200, "12345|Other data");
+    const originalLogLevel = process.env.LOG_LEVEL;
+    const consoleLog = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      process.env.LOG_LEVEL = "warn";
+      await performIdStationScraping(stationName);
+      expect(consoleLog).not.toHaveBeenCalled();
+
+      process.env.LOG_LEVEL = "debug";
+      await performIdStationScraping(stationName);
+      expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining("performIdStationScraping > url:"));
+    } finally {
+      if (originalLogLevel === undefined) delete process.env.LOG_LEVEL;
+      else process.env.LOG_LEVEL = originalLogLevel;
+      consoleLog.mockRestore();
+    }
+  });
+
   it("should throw an error if the API response is invalid", async () => {
     const stationName = "InvalidStation";
     mockAxios.onGet(`https://www.meteociel.fr/temps-reel/lieuhelper.php?mode=findstation&str=${encodeURIComponent(stationName)}`)
