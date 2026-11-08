@@ -266,6 +266,21 @@ describe("Station Metadata Scraper", () => {
       expect(result.stationName).toContain("Lyon");
     });
 
+    it("should extract station name from Meteociel's observation page title", async () => {
+      const mockHtml = `
+        <html>
+          <title>Meteociel - Observations Bressuire (79) - données météo de la station - Tableaux horaires en temps réel</title>
+          <table width="100%"><tbody><tr><td>10:00</td></tr></tbody></table>
+        </html>
+      `;
+
+      mock.onGet(/obs_villes/).reply(200, mockHtml);
+
+      const result = await getWeatherStationMetadata("69001");
+
+      expect(result.stationName).toBe("Bressuire");
+    });
+
     it("should throw ScrapingError on empty station ID", async () => {
       await expect(getWeatherStationMetadata("")).rejects.toThrow(ScrapingError);
     });

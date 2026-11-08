@@ -232,9 +232,15 @@ async function getWeatherStationMetadata(stationId) {
 
     const $ = cheerio.load(response.data);
 
-    // Extract station name from page title or header
-    const titleMatch = $('title').text().match(/(\w+(?:\s+\w+)*)\s*-\s*Meteociel/);
-    const stationName = titleMatch ? titleMatch[1].trim() : "Unknown";
+    // Meteociel titles usually look like "Meteociel - Observations Bressuire (79) - ...".
+    const pageTitle = $('title').text().trim();
+    const observationTitleMatch = pageTitle.match(/Observations\s+(.+?)(?:\s*\(\d{2,3}\))?\s*-/i);
+    const legacyTitleMatch = pageTitle.match(/^(.+?)\s*-\s*Meteociel$/i);
+    const stationName = observationTitleMatch
+      ? observationTitleMatch[1].trim()
+      : legacyTitleMatch
+        ? legacyTitleMatch[1].trim()
+        : "Unknown";
 
     // Check for data availability
     const table = $('table[width="100%"]');
