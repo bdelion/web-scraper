@@ -395,6 +395,9 @@ web_modules/
 .env.local
 .debug/meteociel/
 
+# Generated weather results
+/OutputData.xlsx
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
